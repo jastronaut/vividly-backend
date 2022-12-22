@@ -16,7 +16,7 @@
         "bcryptjs": "^2.4.3",
         "config": "^3.3.1",
         "express": "^4.17.1",
-        "jsonwebtoken": "^8.5.1",
+        "jsonwebtoken": "^9.0.0",
         "mongoose": "^5.9.26",
         "nodemon": "^2.0.4",
         "uuid": "^8.3.0"
