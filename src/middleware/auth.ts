@@ -42,16 +42,24 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 					throw new Error('User does not exist');
 				}
 
-				const reqUser = {
-					id: user.id,
-					name: user.name,
-					username: user.username,
-					bio: user.bio,
-					friends: user.friends,
-				};
-				req.user = reqUser;
-
-				next();
+				// get friendships
+				prisma.friendship
+					.findMany({
+						where: {
+							userId: user.id,
+						},
+					})
+					.then(friendships => {
+						const reqUser = {
+							id: user.id,
+							name: user.name,
+							username: user.username,
+							bio: user.bio,
+							friends: friendships,
+						};
+						req.user = reqUser;
+						next();
+					});
 			});
 	} catch (e) {
 		console.error(e);

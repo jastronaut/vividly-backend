@@ -49,6 +49,13 @@ router.post('/login', async (req: Request, res: Response) => {
 			throw new Error('Could not log in');
 		}
 
+		// get friendships
+		const friendships = await prisma.friendship.findMany({
+			where: {
+				userId: user.id,
+			},
+		});
+
 		res.status(200).json({
 			success: true,
 			jwtToken: token,
@@ -60,7 +67,7 @@ router.post('/login', async (req: Request, res: Response) => {
 				emailVerified: user.emailVerified,
 				bio: user.bio,
 				profilePicture: user.profilePicture,
-				friends: user.friends,
+				friends: friendships,
 				blockedWords: user.blockedWords,
 			},
 		});
