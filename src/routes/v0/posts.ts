@@ -5,24 +5,13 @@ import express from 'express';
 import { RequestUser } from '../../types/types';
 import { auth } from '../../middleware/auth';
 import { postMiddleware } from '../../middleware/post';
+import { isUserBlockedByUserByIds } from '../../utils';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 const MAX_POST_BLOCKS = 50;
 const MAX_COMMENT_LENGTH = 1000;
-
-// from user ids, check if user1 is blocked by user2
-function isUserBlockedByUserByIds(user1Id: string, user2Id: string) {
-	const user1BlockedByUser2 = prisma.blockedUser.findFirst({
-		where: {
-			blockedUserId: user1Id,
-			blockerId: user2Id,
-		},
-	});
-
-	return user1BlockedByUser2 !== null;
-}
 
 function canUserViewPost(user: RequestUser, post: Post) {
 	const authorId = post.authorId;
