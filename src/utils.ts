@@ -22,6 +22,11 @@ export function validateEmail(email: string) {
 	return emailRegex.test(email);
 }
 
+export function validateName(name: string) {
+	const nameRegex = /^[\p{L}\p{N}\p{P}\p{Emoji}]{1,20}$/u;
+	return nameRegex.test(name);
+}
+
 // from user ids, check if user1 is blocked by user2
 export function isUserBlockedByUserByIds(user1Id: string, user2Id: string) {
 	const user1BlockedByUser2 = prisma.blockedUser.findFirst({
