@@ -34,11 +34,11 @@ router.get('/', auth, async (req: Request, res: Response) => {
 router.post('/add/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { uid } = req.params;
+		const { userid } = req.params;
 
 		const otherUser = await prisma.user.findUnique({
 			where: {
-				id: uid,
+				id: userid,
 			},
 		});
 
@@ -50,7 +50,7 @@ router.post('/add/:userid', auth, async (req: Request, res: Response) => {
 		const isUser1BlockedByUser2 = await prisma.blockedUser.findFirst({
 			where: {
 				blockedUserId: user.id,
-				blockerId: uid,
+				blockerId: userid,
 			},
 		});
 
@@ -62,7 +62,7 @@ router.post('/add/:userid', auth, async (req: Request, res: Response) => {
 
 		const ifUser2BlockedUser1 = await prisma.blockedUser.findFirst({
 			where: {
-				blockedUserId: uid,
+				blockedUserId: userid,
 				blockerId: user.id,
 			},
 		});
@@ -73,10 +73,37 @@ router.post('/add/:userid', auth, async (req: Request, res: Response) => {
 				.json({ error: 'Cannot send friend request to user' });
 		}
 
+		// check if user is already friends with other user
+		const isUser1FriendsWithUser2 = await prisma.friendship.findFirst({
+			where: {
+				userId: user.id,
+				friendId: userid,
+			},
+		});
+
+		if (isUser1FriendsWithUser2) {
+			return res.status(403).json({ error: 'Already friends with user' });
+		}
+
+		// check if user has already sent a friend request to other user
+		const hasUser1SentFriendRequestToUser2 =
+			await prisma.friendRequest.findFirst({
+				where: {
+					fromUserId: user.id,
+					toUserId: userid,
+				},
+			});
+
+		if (hasUser1SentFriendRequestToUser2) {
+			return res
+				.status(403)
+				.json({ error: 'Already sent friend request to user' });
+		}
+
 		const friend = await prisma.friendRequest.create({
 			data: {
 				fromUserId: user.id,
-				toUserId: uid,
+				toUserId: userid,
 				createdTime: new Date(),
 			},
 		});
@@ -91,14 +118,14 @@ router.post('/add/:userid', auth, async (req: Request, res: Response) => {
 // @route POST /v0/friends/accept/:userid
 // @desc Accept a friend request
 // @access Private
-router.post('/accept/:userid', auth, async (req: Request, res: Response) => {
+router.post('/accept/:userId', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { uid } = req.params;
+		const { userId } = req.params;
 
 		const friendRequest = await prisma.friendRequest.findFirst({
 			where: {
-				fromUserId: uid,
+				fromUserId: userId,
 				toUserId: user.id,
 			},
 		});
@@ -107,13 +134,25 @@ router.post('/accept/:userid', auth, async (req: Request, res: Response) => {
 			return res.status(404).json({ error: 'Friend request not found' });
 		}
 
-		const friend = await prisma.friendship.create({
+		const friendToUser = await prisma.friendship.create({
 			data: {
 				userId: user.id,
-				friendId: uid,
+				friendId: userId,
 				lastReadPostTime: new Date(),
 			},
 		});
+
+		const userToFriend = await prisma.friendship.create({
+			data: {
+				userId: userId,
+				friendId: user.id,
+				lastReadPostTime: new Date(),
+			},
+		});
+
+		if (!friendToUser || !userToFriend) {
+			return res.status(500).json({ error: 'Server error' });
+		}
 
 		// delete friend request
 		await prisma.friendRequest.delete({
@@ -122,7 +161,7 @@ router.post('/accept/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json(friend);
+		res.status(200).json(friendToUser);
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Server error' });
@@ -135,11 +174,11 @@ router.post('/accept/:userid', auth, async (req: Request, res: Response) => {
 router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { uid } = req.params;
+		const { userId } = req.params;
 
 		const friendRequest = await prisma.friendRequest.findFirst({
 			where: {
-				fromUserId: uid,
+				fromUserId: userId,
 				toUserId: user.id,
 			},
 		});
@@ -168,12 +207,12 @@ router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
 router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { uid } = req.params;
+		const { userId } = req.params;
 
 		const friendRequest = await prisma.friendRequest.findFirst({
 			where: {
 				fromUserId: user.id,
-				toUserId: uid,
+				toUserId: userId,
 			},
 		});
 
@@ -201,12 +240,12 @@ router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
 router.post('/unfriend/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { uid } = req.params;
+		const { userId } = req.params;
 
 		const friendship = await prisma.friendship.findFirst({
 			where: {
 				userId: user.id,
-				friendId: uid,
+				friendId: userId,
 			},
 		});
 
@@ -250,3 +289,5 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 		res.status(500).json({ error: 'Server error' });
 	}
 });
+
+export default router;

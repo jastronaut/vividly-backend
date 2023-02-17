@@ -2,14 +2,16 @@ import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 
-import { validateEmail, validatePassword, validateUsername } from '../../utils';
+import {
+	validateEmail,
+	validatePassword,
+	validateUsername,
+	getJwt,
+} from '../../utils';
 
 const router = express.Router();
 const prisma = new PrismaClient();
-
-const JWT_SECRET = process.env.PEACHED_JWT_SECRET || '';
 
 // @route POST auth/login
 // @desc Login a User
@@ -38,15 +40,10 @@ router.post('/login', async (req: Request, res: Response) => {
 			return res.status(400).json({ msg: 'Invalid credentials' });
 		}
 
-		if (!JWT_SECRET) {
-			throw new Error('JWT_SECRET is not defined');
-		}
-
-		// sign jwt
-		const token = jwt.sign({ id: user.id, passwordHash: hash }, JWT_SECRET);
+		const token = getJwt(user.id, hash);
 
 		if (!token) {
-			throw new Error('Could not log in');
+			return res.status(400).json({ msg: 'Invalid credentials' });
 		}
 
 		// get friendships
@@ -141,9 +138,11 @@ router.post('/register', async (req: Request, res: Response) => {
 		});
 
 		// sign jwt
-		const token = jwt.sign({ id: newUser.id, passwordHash: hash }, JWT_SECRET, {
-			expiresIn: 3600,
-		});
+		const token = getJwt(newUser.id, hash);
+
+		if (!token) {
+			return res.status(400).json({ msg: 'Error in creating jwt' });
+		}
 
 		res.json({
 			user: {

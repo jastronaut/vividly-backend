@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+const JWT_SECRET = process.env.PEACHED_JWT_SECRET || '';
+import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
 
@@ -30,4 +32,12 @@ export function isUserBlockedByUserByIds(user1Id: string, user2Id: string) {
 	});
 
 	return user1BlockedByUser2 !== null;
+}
+
+export function getJwt(userId: string, passwordHash: string) {
+	if (!JWT_SECRET) {
+		throw new Error('JWT_SECRET is not defined');
+	}
+
+	return jwt.sign({ id: userId, passwordHash }, JWT_SECRET);
 }
