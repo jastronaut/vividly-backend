@@ -1,12 +1,11 @@
-import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
 
+import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth } from '../../middleware/auth';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // @route  GET /v0/blocked_users
 // @desc   Get all blocked users
@@ -165,3 +164,5 @@ router.post('/unblock/:userid', auth, async (req: Request, res: Response) => {
 		res.status(500).json({ error: 'Server error' });
 	}
 });
+
+export default router;

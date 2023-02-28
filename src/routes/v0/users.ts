@@ -1,13 +1,18 @@
-import { PrismaClient } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
+import SendGrid from '@sendgrid/mail';
 
+import { prisma } from '../../app';
 import { auth } from '../../middleware/auth';
-import { validateEmail, validateUsername, validateName } from '../../utils';
+import {
+	validateEmail,
+	validateUsername,
+	validateName,
+	generateVerificationCode,
+} from '../../utils';
 import { RequestUser } from '../../types/types';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // @route GET /v0/users/username/exists/:username
 // @desc Check if username exists
@@ -90,7 +95,7 @@ router.get('/email/exists/:email', async (req: Request, res: Response) => {
 	}
 
 	try {
-		const user = await prisma.user.findUnique({
+		const user = await prisma.authUser.findUnique({
 			where: {
 				email,
 			},
@@ -127,6 +132,56 @@ router.post('/name/change', auth, async (req: Request, res: Response) => {
 				name,
 			},
 		});
+
+		return res.status(200).json({ success: true });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ error: 'Internal server error' });
+	}
+});
+
+// @route POST /v0/users/email/change
+// @desc Change email
+// @access Private
+router.post('/email/change', auth, async (req: Request, res: Response) => {
+	const { email } = req.body;
+	const user = req.user as RequestUser;
+
+	if (!validateEmail(email)) {
+		return res.status(400).json({ error: 'Invalid email' });
+	}
+
+	try {
+		const emailUser = await prisma.authUser.findUnique({
+			where: {
+				email,
+			},
+		});
+
+		if (emailUser) {
+			return res.status(400).json({ error: 'Email taken' });
+		}
+
+		const code = generateVerificationCode();
+
+		await prisma.authUser.update({
+			where: {
+				id: user.id,
+			},
+			data: {
+				email,
+				verificationCode: code,
+			},
+		});
+
+		const message = {
+			from: 'peached.app@gmail.com',
+			to: email,
+			subject: 'Verify your email',
+			html: `<p>Use code ${code} to verify your email.</p>`,
+		};
+
+		await SendGrid.send(message);
 
 		return res.status(200).json({ success: true });
 	} catch (err) {

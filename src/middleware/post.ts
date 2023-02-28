@@ -1,12 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
+
+import { prisma } from '../app';
 
 export function postMiddleware(
 	req: Request,
 	res: Response,
 	next: NextFunction
 ) {
-	const prisma = new PrismaClient();
 	const { id } = req.params;
 	prisma.post
 		.findUnique({

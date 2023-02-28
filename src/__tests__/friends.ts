@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import { beforeAll, afterAll, it, describe, expect } from '@jest/globals';
 
 import { getJwt } from '../utils';
+import { getRandomMockUserData, getMockUserJwt } from '../mockData';
 
 import FriendHandlers from '../routes/v0/friends';
 
@@ -13,33 +14,6 @@ const app = express();
 const prisma = new PrismaClient();
 
 let User1: User | null, User2: User | null, User3: User | null;
-
-const User1Data = {
-	username: 'futuresounds',
-	email: 'cv01@vocaloid.com',
-	name: 'Hatsune Miku',
-	password: '',
-	bio: 'an android diva in the near-future world where songs are lost',
-	profilePicture: 'avatarone',
-};
-
-const User2Data = {
-	username: 'kaito',
-	email: 'taro@gmail.com',
-	name: 'Kaito',
-	password: '',
-	bio: '',
-	profilePicture: '',
-};
-
-const User3Data = {
-	username: 'luka',
-	email: 'megurine@vocaloid.com',
-	name: 'Megurine Luka',
-	password: '',
-	bio: '',
-	profilePicture: '',
-};
 
 let User1JWT = '',
 	User2JWT = '',
@@ -50,9 +24,9 @@ beforeAll(async () => {
 
 	app.use('/api/v0/friends', FriendHandlers);
 
-	User1 = await prisma.user.create({ data: User1Data });
-	User2 = await prisma.user.create({ data: User2Data });
-	User3 = await prisma.user.create({ data: User3Data });
+	User1 = await getRandomMockUserData();
+	User2 = await getRandomMockUserData();
+	User3 = await getRandomMockUserData();
 
 	const salt = await bcrypt.genSalt(10);
 	const hash = await bcrypt.hash('', salt);

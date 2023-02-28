@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 
-const prisma = new PrismaClient();
+import { prisma } from '../app';
 
 const JWT_SECRET = process.env.PEACHED_JWT_SECRET || '';
 
@@ -36,33 +35,55 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 				where: {
 					id,
 				},
+				include: {
+					authUser: true,
+					friends: true,
+				},
 			})
 			.then(user => {
 				if (!user) {
 					throw new Error('User does not exist');
 				}
-
-				// get friendships
-				prisma.friendship
-					.findMany({
-						where: {
-							userId: user.id,
-						},
-					})
-					.then(friendships => {
-						const reqUser = {
-							id: user.id,
-							name: user.name,
-							username: user.username,
-							bio: user.bio,
-							friends: friendships,
-						};
-						req.user = reqUser;
-						next();
-					});
+				const reqUser = {
+					id: user.id,
+					name: user.name,
+					username: user.username,
+					bio: user.bio,
+					friends: user.friends,
+				};
+				req.user = reqUser;
+				next();
 			});
 	} catch (e) {
 		console.error(e);
 		return res.status(400).json({ success: false, msg: 'Token is not valid' });
 	}
+}
+
+export function verifyEmail(req: Request, res: Response, next: NextFunction) {
+	const user = req.user;
+	if (!user) {
+		return res.status(401).json({ success: false, msg: 'Not authorized' });
+	}
+	prisma.authUser
+		.findUnique({
+			where: {
+				userId: user.id,
+			},
+		})
+		.then(authUser => {
+			if (!authUser) {
+				return res.status(401).json({ success: false, msg: 'Not authorized' });
+			}
+
+			if (!authUser.emailVerified) {
+				return res.status(401).json({ success: false, msg: 'Not verified' });
+			}
+
+			next();
+		})
+		.catch(e => {
+			console.error(e);
+			return res.status(500).json({ success: false, msg: 'Server error' });
+		});
 }

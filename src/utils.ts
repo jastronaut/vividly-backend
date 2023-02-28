@@ -46,3 +46,13 @@ export function getJwt(userId: string, passwordHash: string) {
 
 	return jwt.sign({ id: userId, passwordHash }, JWT_SECRET);
 }
+
+export function generateVerificationCode(len = 7) {
+	const characters =
+		'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+	let code = '';
+	for (let i = 0; i < len; i++) {
+		code += characters.charAt(Math.floor(Math.random() * characters.length));
+	}
+	return code;
+}
