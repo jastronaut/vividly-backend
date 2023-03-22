@@ -189,3 +189,35 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 		return res.status(500).json({ error: 'Internal server error' });
 	}
 });
+
+// @route GET /v0/users/:id
+// @desc Get user by id
+// @access Public
+router.get('/:id', async (req: Request, res: Response) => {
+	const { id } = req.params;
+
+	try {
+		const user = await prisma.user.findUnique({
+			where: {
+				id,
+			},
+		});
+
+		if (!user) {
+			return res.status(404).json({ error: 'User not found' });
+		}
+
+		return res.status(200).json({
+			id: user.id,
+			username: user.username,
+			name: user.name,
+			bio: user.bio,
+			profilePicture: user.profilePicture,
+		});
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ error: 'Internal server error' });
+	}
+});
+
+export default router;
