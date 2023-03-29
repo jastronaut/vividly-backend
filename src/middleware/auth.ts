@@ -6,7 +6,7 @@ import { prisma } from '../app';
 const JWT_SECRET = process.env.PEACHED_JWT_SECRET || '';
 
 export function auth(req: Request, res: Response, next: NextFunction) {
-	const token = req.header('x-auth-token');
+	const token = req.header('Authorization')?.replace('Bearer ', '');
 
 	if (!token) {
 		return res

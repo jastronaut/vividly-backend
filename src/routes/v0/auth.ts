@@ -69,7 +69,7 @@ router.post('/login', async (req: Request, res: Response) => {
 				name: user.name,
 				username: user.username,
 				bio: user.bio,
-				profilePicture: user.profilePicture,
+				avatarSrc: user.avatarSrc,
 				friends: friendships,
 			},
 		});
@@ -138,7 +138,7 @@ router.post('/register', async (req: Request, res: Response) => {
 			data: {
 				username,
 				name: name || username,
-				profilePicture: 'https://i.ibb.co/CnxM4Hj/grid-0-2.jpg',
+				avatarSrc: 'https://i.ibb.co/CnxM4Hj/grid-0-2.jpg',
 				authUser: {
 					create: {
 						password: hash,
@@ -149,6 +149,7 @@ router.post('/register', async (req: Request, res: Response) => {
 			},
 		});
 
+		/*
 		const message = {
 			from: 'peached.app@gmail.com',
 			to: email,
@@ -157,6 +158,7 @@ router.post('/register', async (req: Request, res: Response) => {
 		};
 
 		await SendGrid.send(message);
+		*/
 
 		// sign jwt
 		const token = getJwt(newUser.id, hash);

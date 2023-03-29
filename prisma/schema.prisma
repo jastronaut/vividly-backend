@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("VIVIDLY_MONGO_URL")
+}
+
+model CommentReply {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId    String   @db.ObjectId
+  content     String
+  createdTime DateTime @db.Date
+  parentId    String   @db.ObjectId
+  parent      Comment  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model Comment {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  authorId    String         @db.ObjectId
+  content     String
+  createdTime DateTime       @db.Date
+  replies     CommentReply[] @relation("CommentReplies")
+  postId      String         @db.ObjectId
+  post        Post           @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  author      User           @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model FriendRequest {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  fromUserId  String   @db.ObjectId
+  toUserId    String   @db.ObjectId
+  fromUser    User?    @relation("friend requester", fields: [fromUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  toUser      User?    @relation("friend request reciever", fields: [toUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdTime DateTime @db.Date
+}
+
+enum FriendType {
+  FRIEND
+  FOLLOWER
+  FOLLOWING
+}
+
+model Friendship {
+  id               String     @id @default(auto()) @map("_id") @db.ObjectId
+  friendId         String     @db.ObjectId
+  friend           User?      @relation("FriendedUser", fields: [friendId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  friendType       FriendType @default(FRIEND)
+  isFavorite       Boolean    @default(false)
+  lastReadPostTime DateTime
+  lastReadPostId   String?
+  userId           String     @db.ObjectId
+  user             User?      @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model Post {
+  id               String    @id @default(auto()) @map("_id") @db.ObjectId
+  authorId         String    @db.ObjectId
+  author           User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  comments         Comment[] @relation("PostComments")
+  content          Json[]
+  createdTime      DateTime  @db.Date
+  isUpdated        Boolean   @default(false)
+  likedByIds       String[]  @default([])
+  updatedTime      DateTime  @db.Date
+  commentsDisabled Boolean   @default(false)
+}
+
+model BlockedUser {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  blockedUserId String        @db.ObjectId
+  blockedUser   UserSettings? @relation("blocked user", fields: [blockedUserId], references: [id])
+  blockerId     String        @db.ObjectId
+  blocker       UserSettings? @relation("blocker", fields: [blockerId], references: [id])
+}
+
+model AuthUser {
+  id               String  @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String  @unique @db.ObjectId
+  user             User    @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  email            String  @unique(map: "email_1")
+  password         String
+  emailVerified    Boolean @default(false)
+  verificationCode String?
+}
+
+model UserSettings {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String        @unique @db.ObjectId
+  user         User          @relation("UserSettings", fields: [userId], references: [id])
+  blockedWords String[]      @default([])
+  blockedUsers BlockedUser[] @relation("blocker")
+  blockedBy    BlockedUser[] @relation("blocked user")
+}
+
+model User {
+  id                    String          @id @default(auto()) @map("_id") @db.ObjectId
+  bio                   String          @default("")
+  friends               Friendship[]    @relation("FriendedUser")
+  friendOf              Friendship[]    @relation("FriendUser")
+  isDeactivated         Boolean         @default(false)
+  name                  String
+  avatarSrc             String          @default("https://i.ibb.co/CnxM4Hj/grid-0-2.jpg")
+  url                   String?
+  username              String          @unique(map: "username_1")
+  posts                 Post[]          @relation("PostAuthor")
+  friendRequests        FriendRequest[] @relation("friend requester")
+  friendRequestReciever FriendRequest[] @relation("friend request reciever")
+
+  authUser     AuthUser?     @relation("AuthUser")
+  userSettings UserSettings? @relation("UserSettings")
+  comments     Comment[]     @relation("CommentAuthor")
+}

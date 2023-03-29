@@ -212,7 +212,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 			username: user.username,
 			name: user.name,
 			bio: user.bio,
-			profilePicture: user.profilePicture,
+			avatarSrc: user.avatarSrc,
 		});
 	} catch (err) {
 		console.error(err);

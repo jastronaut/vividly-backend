@@ -67,15 +67,35 @@ async function createPostResponseForUserId(userId: string, post: Post) {
 		throw new Error('Author not found');
 	}
 
+	// get comments
+	const comments = await prisma.comment.findMany({
+		where: {
+			postId: post.id,
+		},
+		orderBy: {
+			createdTime: 'desc',
+		},
+		select: {
+			id: true,
+			authorId: true,
+			content: true,
+		},
+	});
+
 	return {
-		...post,
+		id: post.id,
+		createdTime: post.createdTime,
+		commentsDisabled: post.commentsDisabled,
+		authorId: post.authorId,
+		content: post.content,
 		likes: likesLen,
 		likedByUser,
+		comments,
 		author: {
 			id: author.id,
 			name: author.name,
 			username: author.username,
-			profilePicture: author.profilePicture,
+			avatarSrc: author.avatarSrc,
 		},
 	};
 }
@@ -103,43 +123,13 @@ async function createCommentReplyResponse(
 			id: replyAuthorSearch.id,
 			name: replyAuthorSearch.name,
 			username: replyAuthorSearch.username,
-			profilePicture: replyAuthorSearch.profilePicture,
+			avatarSrc: replyAuthorSearch.avatarSrc,
 		};
 	}
 
 	return {
 		...commentReply,
 		author: replyAuthor,
-	};
-}
-
-async function createCommentResponse(comment: Comment, author?: RequestUser) {
-	let postAuthor = null;
-
-	if (author) {
-		postAuthor = author;
-	} else if (!postAuthor) {
-		const postAuthorSearch = await prisma.user.findUnique({
-			where: {
-				id: comment.authorId,
-			},
-		});
-
-		if (!postAuthorSearch) {
-			throw new Error('Comment author not found');
-		}
-
-		postAuthor = {
-			id: postAuthorSearch.id,
-			name: postAuthorSearch.name,
-			username: postAuthorSearch.username,
-			profilePicture: postAuthorSearch.profilePicture,
-		};
-	}
-
-	return {
-		...comment,
-		author: postAuthor,
 	};
 }
 
@@ -506,7 +496,12 @@ router.post(
 				},
 			});
 
-			const commentResponse = await createCommentResponse(comment, user);
+			const commentResponse = {
+				id: comment.id,
+				content: comment.content,
+				createdTime: comment.createdTime,
+				postId: comment.postId,
+			};
 
 			return res.status(200).json({ success: true, comment: commentResponse });
 		} catch (err) {

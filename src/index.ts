@@ -23,6 +23,6 @@ const port = process.env.PORT || 1337;
 
 const server = app.listen(port, () =>
 	console.log(
-		`⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`
+		`⭐️ You're running Vividly! Server is listening on port ${port} ⭐️`
 	)
 );
