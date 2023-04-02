@@ -203,7 +203,7 @@ router.post('/:id/like', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json({ success: true });
+		res.status(200).json({ success: true, likes: post.likedByIds.length + 1 });
 	} catch (err) {
 		res.status(500).json({ success: false, error: err });
 	}
@@ -246,7 +246,9 @@ router.post(
 				},
 			});
 
-			res.status(200).json({ success: true });
+			res
+				.status(200)
+				.json({ success: true, likes: post.likedByIds.length - 1 });
 		} catch (err) {
 			res.status(500).json({ success: false, error: err });
 		}
