@@ -83,6 +83,7 @@ model AuthUser {
   password         String
   emailVerified    Boolean @default(false)
   verificationCode String?
+  resetCode        String?
 }
 
 model UserSettings {

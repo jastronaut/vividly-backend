@@ -54,23 +54,15 @@ router.post('/login', async (req: Request, res: Response) => {
 			return res.status(400).json({ msg: 'Invalid credentials' });
 		}
 
-		// get friendships
-		const friendships = await prisma.friendship.findMany({
-			where: {
-				userId: user.id,
-			},
-		});
-
 		res.status(200).json({
 			success: true,
-			jwtToken: token,
+			token,
 			user: {
 				id: user.id,
 				name: user.name,
 				username: user.username,
 				bio: user.bio,
 				avatarSrc: user.avatarSrc,
-				friends: friendships,
 			},
 		});
 	} catch (error) {
@@ -86,6 +78,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // @access Public
 router.post('/register', async (req: Request, res: Response) => {
 	const { username, password, email, name } = req.body;
+
 	if (!username || !password || !email) {
 		return res.status(400).json({ msg: 'Please enter all fields' });
 	}
@@ -101,6 +94,7 @@ router.post('/register', async (req: Request, res: Response) => {
 	if (!validateEmail(email)) {
 		return res.status(400).json({ msg: 'Invalid email' });
 	}
+
 	try {
 		// check if username already exists
 		const usernameTaken = await prisma.user.findUnique({
@@ -149,16 +143,23 @@ router.post('/register', async (req: Request, res: Response) => {
 			},
 		});
 
-		/*
 		const message = {
-			from: 'peached.app@gmail.com',
-			to: email,
+			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			to: {
+				email,
+				name: username,
+			},
 			subject: 'Verify your email',
-			html: `<p>Use code ${code} to verify your email.</p>`,
+			html: `<p>Click <a href="http://localhost:3000/verify/${newUser.id}/${code}">here</a> to verify your email</p>`,
+			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
+			dynamicTemplateData: {
+				username: '@' + username,
+				first_name: '@' + username,
+				verify_url: `http://localhost:3000/verify/${newUser.id}/${code}`,
+			},
 		};
 
 		await SendGrid.send(message);
-		*/
 
 		// sign jwt
 		const token = getJwt(newUser.id, hash);
@@ -172,6 +173,8 @@ router.post('/register', async (req: Request, res: Response) => {
 				id: newUser.id,
 				name: newUser.name,
 				username: newUser.username,
+				avatarSrc: newUser.avatarSrc,
+				bio: '',
 			},
 			token,
 		});
@@ -259,6 +262,9 @@ router.get('/verify', auth, async (req: Request, res: Response) => {
 			where: {
 				userId: user.id,
 			},
+			include: {
+				user: true,
+			},
 		});
 
 		if (!authUser) {
@@ -270,10 +276,16 @@ router.get('/verify', auth, async (req: Request, res: Response) => {
 		}
 
 		const message = {
-			from: 'peached.app@gmail.com',
-			to: authUser.email,
+			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			to: { email: authUser.email, name: authUser.user.name },
 			subject: 'Verify your email',
-			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}">here</a> to verify your email</p>`,
+			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}/${authUser.verificationCode}">here</a> to verify your email</p>`,
+			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
+			dynamicTemplateData: {
+				username: '@' + authUser.user.username,
+				first_name: '@' + authUser.user.username,
+				verify_url: `http://localhost:3000/verify/${user.id}/${authUser.verificationCode}`,
+			},
 		};
 
 		await SendGrid.send(message);
@@ -285,23 +297,16 @@ router.get('/verify', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route GET auth/verify/:code
+// @route GET auth/verify/:userId/:code
 // @desc Verify user via code
 // @access Public
-router.get('/verify/:code', auth, async (req: Request, res: Response) => {
-	const user = req.user as RequestUser;
-	const { code } = req.params;
-
-	if (!user) {
-		return res.status(400).json({ msg: 'User does not exist' });
-	}
-
+router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
+	const { code, userId } = req.params;
 	try {
 		const authUser = await prisma.authUser.findUnique({
 			where: {
-				userId: user.id,
+				userId: userId,
 			},
-
 			include: {
 				user: true,
 			},
@@ -321,11 +326,11 @@ router.get('/verify/:code', auth, async (req: Request, res: Response) => {
 
 		await prisma.authUser.update({
 			where: {
-				userId: user.id,
+				userId,
 			},
-
 			data: {
 				emailVerified: true,
+				verificationCode: null,
 			},
 		});
 
@@ -335,5 +340,117 @@ router.get('/verify/:code', auth, async (req: Request, res: Response) => {
 		res.status(500).json({ msg: 'Error verifying email' });
 	}
 });
+
+// @route POST auth/password/reset
+// @desc Send password reset email to user
+// @access Public
+router.post('/password/reset-request', async (req: Request, res: Response) => {
+	const { email } = req.body;
+	if (!email) {
+		return res.status(400).json({ msg: 'Please enter all fields' });
+	}
+
+	try {
+		const authUser = await prisma.authUser.findUnique({
+			where: {
+				email,
+			},
+			include: {
+				user: {
+					select: {
+						name: true,
+						username: true,
+					},
+				},
+			},
+		});
+
+		if (!authUser) {
+			return res.status(400).json({ msg: 'User does not exist' });
+		}
+
+		const code = generateVerificationCode();
+
+		await prisma.authUser.update({
+			where: {
+				email,
+			},
+			data: {
+				resetCode: code,
+			},
+		});
+
+		const passwordResetLink = `http://localhost:3000/password/reset/${authUser.userId}/${code}`;
+		const message = {
+			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			to: { email: authUser.email, name: authUser.user.name },
+			subject: 'Verify your email',
+			html: `<p>Click <a href="${passwordResetLink}">here</a> to reset your password</p>`,
+			templateId: 'd-4e32a3a9281d460a95fef0f759f3736f',
+			dynamicTemplateData: {
+				username: '@' + authUser.user.username,
+				first_name: '@' + authUser.user.username,
+				verify_url: passwordResetLink,
+			},
+		};
+		await SendGrid.send(message);
+		res.status(200).json({ msg: 'Email sent successfully' });
+	} catch (error) {
+		console.log('error sending email:', error);
+		res.status(500).json({ msg: 'Error sending email' });
+	}
+});
+
+// @route POST auth/password/reset/:userId/:code
+// @desc Reset user password
+// @access Public
+router.post(
+	'/password/reset/:userId/:code',
+	async (req: Request, res: Response) => {
+		const { code, userId } = req.params;
+		const { password } = req.body;
+		if (!password) {
+			return res.status(400).json({ msg: 'Please enter all fields' });
+		}
+
+		if (!validatePassword(password)) {
+			return res.status(400).json({ msg: 'Invalid password' });
+		}
+
+		try {
+			const authUser = await prisma.authUser.findUnique({
+				where: {
+					userId,
+				},
+			});
+
+			if (!authUser) {
+				return res.status(400).json({ msg: 'User does not exist' });
+			}
+
+			if (authUser.resetCode !== code) {
+				return res.status(400).json({ msg: 'Invalid code' });
+			}
+
+			const salt = await bcrypt.genSalt(10);
+			const hash = await bcrypt.hash(password, salt);
+
+			await prisma.authUser.update({
+				where: {
+					userId,
+				},
+				data: {
+					password: hash,
+					resetCode: null,
+				},
+			});
+
+			res.status(200).json({ msg: 'Password reset successfully' });
+		} catch (error) {
+			console.log('error resetting password:', error);
+			res.status(500).json({ msg: 'Error resetting password' });
+		}
+	}
+);
 
 export default router;

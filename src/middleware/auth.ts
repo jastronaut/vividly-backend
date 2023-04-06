@@ -76,9 +76,9 @@ export function verifyEmail(req: Request, res: Response, next: NextFunction) {
 				return res.status(401).json({ success: false, msg: 'Not authorized' });
 			}
 
-			if (!authUser.emailVerified) {
-				return res.status(401).json({ success: false, msg: 'Not verified' });
-			}
+			// if (!authUser.emailVerified) {
+			// 	return res.status(401).json({ success: false, msg: 'Not verified' });
+			// }
 
 			next();
 		})
