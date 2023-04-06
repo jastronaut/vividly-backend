@@ -17,8 +17,10 @@ export function validatePassword(password: string) {
 
 // validate email
 export function validateEmail(email: string) {
-	const emailRegex =
-		/^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+	// const emailRegex =
+	// /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+	// only test email accounts for now
+	const emailRegex = /peached\.app\+[1-9][0-9]?$|peached\.app\+100@gmail\.com/;
 	return emailRegex.test(email);
 }
 
@@ -55,4 +57,16 @@ export function generateVerificationCode(len = 7) {
 		code += characters.charAt(Math.floor(Math.random() * characters.length));
 	}
 	return code;
+}
+
+export function validateImgSrc(imgSrc: string) {
+	return (
+		imgSrc.endsWith('.jpg') ||
+		imgSrc.endsWith('.jpeg') ||
+		imgSrc.endsWith('.png')
+	);
+}
+
+export function validateBio(bio: string) {
+	return bio.length <= 150;
 }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import express from 'express';
 
+import { FriendRequest, User } from '@prisma/client';
 import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth, verifyEmail } from '../../middleware/auth';
@@ -37,6 +38,10 @@ router.post(
 		try {
 			const user = req.user as RequestUser;
 			const { userid } = req.params;
+
+			if (user.id === userid) {
+				return res.status(403).json({ error: 'Cannot add self as friend' });
+			}
 
 			const otherUser = await prisma.user.findUnique({
 				where: {
@@ -274,6 +279,28 @@ router.post('/unfriend/:userid', auth, async (req: Request, res: Response) => {
 	}
 });
 
+type FriendRequestWithUser = FriendRequest & {
+	fromUser?: User | null;
+	toUser?: User | null;
+};
+
+function formatFriendRequestsResponse(friendRequests: FriendRequestWithUser[]) {
+	return friendRequests.map(friendRequest => {
+		const user = friendRequest.fromUser || friendRequest.toUser;
+		return {
+			id: friendRequest.id,
+			user: {
+				id: user?.id,
+				username: user?.username,
+				avatarSrc: user?.avatarSrc,
+				name: user?.name,
+				bio: user?.bio,
+			},
+			createdTime: friendRequest.createdTime,
+		};
+	});
+}
+
 // @route GET /v0/friends/requests
 // @desc Get all friend requests
 // @access Private
@@ -281,7 +308,7 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
 
-		const friendRequests = await prisma.friendRequest.findMany({
+		const inboundRequests = await prisma.friendRequest.findMany({
 			where: {
 				toUserId: user.id,
 			},
@@ -290,7 +317,19 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json(friendRequests);
+		const outboundRequests = await prisma.friendRequest.findMany({
+			where: {
+				fromUserId: user.id,
+			},
+			include: {
+				toUser: true,
+			},
+		});
+
+		res.status(200).json({
+			inbound: formatFriendRequestsResponse(inboundRequests),
+			outbound: formatFriendRequestsResponse(outboundRequests),
+		});
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Server error' });

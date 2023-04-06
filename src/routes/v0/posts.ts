@@ -10,7 +10,7 @@ import { postMiddleware } from '../../middleware/post';
 const router = express.Router();
 
 const MAX_POST_BLOCKS = 50;
-const MAX_COMMENT_LENGTH = 1000;
+const MAX_COMMENT_LENGTH = 500;
 
 async function canUserViewPost(user: RequestUser, post: Post) {
 	const authorId = post.authorId;
@@ -36,10 +36,30 @@ async function canUserViewPost(user: RequestUser, post: Post) {
 		return true;
 	}
 
+	// get users blocked by request user
+	const blockedUsers = await prisma.blockedUser.findMany({
+		select: {
+			blockedUserId: true,
+		},
+		where: {
+			blockerId: post.authorId,
+		},
+	});
+
+	const blockedUserIds = blockedUsers.map(user => user.blockedUserId);
+
+	if (blockedUserIds.includes(user.id)) {
+		return false;
+	}
+
 	return false;
 }
 
 async function canUserCommentOnPost(user: RequestUser, post: Post) {
+	if (post.authorId === user.id) {
+		return true;
+	}
+
 	const canView = await canUserViewPost(user, post);
 	if (!canView) {
 		return false;
@@ -277,6 +297,7 @@ router.post('/', auth, async (req: Request, res: Response) => {
 			return res.status(400).json({ success: false, msg: 'Invalid post' });
 		}
 
+		// this isn't implemented in the frontend yet
 		if (contentLength > MAX_POST_BLOCKS) {
 			return res.status(400).json({ success: false, msg: 'Post is too long' });
 		}

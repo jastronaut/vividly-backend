@@ -1,4 +1,4 @@
-import { Post, PrismaClient, Comment } from '@prisma/client';
+import { Post, Comment } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
 
@@ -8,11 +8,20 @@ import { auth } from '../../middleware/auth';
 
 const router = express.Router();
 
+type CommentWithAuthor = Comment & {
+	author: { id: string; username: string; name: string; avatarSrc: string };
+};
+
 function createFeedResponseForPostandUserId(
-	post: Post & { comments: Comment[] },
-	userId: string
+	post: Post & { comments: CommentWithAuthor[] },
+	userId: string,
+	blockedUserIds: string[]
 ) {
 	const likedByUser = post.likedByIds.find(like => like === userId);
+	// can we do this with prisma?
+	const filteredComments = post.comments.filter(
+		comment => !blockedUserIds.includes(comment.authorId)
+	);
 	return {
 		id: post.id,
 		createdTime: post.createdTime,
@@ -21,7 +30,7 @@ function createFeedResponseForPostandUserId(
 		content: post.content,
 		likes: post.likedByIds.length,
 		isLikedByUser: likedByUser ? true : false,
-		comments: post.comments,
+		comments: filteredComments,
 	};
 }
 
@@ -72,7 +81,18 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 					createdTime: 'desc',
 				},
 				include: {
-					comments: true,
+					comments: {
+						include: {
+							author: {
+								select: {
+									id: true,
+									name: true,
+									username: true,
+									avatarSrc: true,
+								},
+							},
+						},
+					},
 				},
 			});
 		} else {
@@ -101,11 +121,25 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			});
 		}
 
-		res
-			.status(200)
-			.json(
-				posts.map(post => createFeedResponseForPostandUserId(post, user.id))
-			);
+		// get users blocked by request user
+		const blockedUsers = await prisma.blockedUser.findMany({
+			select: {
+				blockedUserId: true,
+			},
+			where: {
+				blockerId: user.id,
+			},
+		});
+
+		res.status(200).json(
+			posts.map(post =>
+				createFeedResponseForPostandUserId(
+					post,
+					user.id,
+					blockedUsers.map(user => user.blockedUserId)
+				)
+			)
+		);
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Server error' });
