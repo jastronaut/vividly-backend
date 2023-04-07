@@ -30,6 +30,7 @@
     "jest-mock-extended": "2.0.4",
     "prettier": "^2.8.4",
     "prisma": "4.10.1",
+    "rimraf": "^4.4.1",
     "supertest": "^6.3.3",
     "ts-jest": "^29.0.5",
     "ts-node": "10.9.1",
