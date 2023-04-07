@@ -3,8 +3,12 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node src/index.ts",
-    "test": "jest -i"
+    "dev": "ts-node-dev --respawn src/index.ts",
+    "build": "rimraf dist && tsc",
+    "start": "node dist/index.js",
+    "migrate": "prisma migrate dev",
+    "generate": "prisma generate",
+    "test": "jest --config jest.config.js"
   },
   "dependencies": {
     "@prisma/client": "4.10.1",
