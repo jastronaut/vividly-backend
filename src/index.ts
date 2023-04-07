@@ -7,9 +7,11 @@ import FeedHandlers from './routes/v0/feed';
 import FriendHandlers from './routes/v0/friends';
 import BlockedUsersHandlers from './routes/v0/blocked_users';
 import UsersHandlers from './routes/v0/users';
+import WaitlistHandlers from './routes/v0/waitlist';
 
 const app = express();
 app.use(express.json());
+// questionable
 app.use(cors());
 
 app.use('/v0/auth', AuthHandlers);
@@ -18,6 +20,7 @@ app.use('/v0/feed', FeedHandlers);
 app.use('/v0/friends', FriendHandlers);
 app.use('/v0/blocked_users', BlockedUsersHandlers);
 app.use('/v0/users', UsersHandlers);
+app.use('/v0/waitlist', WaitlistHandlers);
 
 const port = process.env.PORT || 1337;
 
