@@ -70,13 +70,14 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 		let posts = [];
 		if (cursor) {
 			posts = await prisma.post.findMany({
+				cursor: {
+					id: cursor,
+				},
 				where: {
 					authorId: userid,
-					createdTime: {
-						lt: cursor,
-					},
 				},
 				take: 10,
+				skip: 1,
 				orderBy: {
 					createdTime: 'desc',
 				},
@@ -131,15 +132,21 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json(
-			posts.map(post =>
-				createFeedResponseForPostandUserId(
-					post,
-					user.id,
-					blockedUsers.map(user => user.blockedUserId)
-				)
+		let newCursor: string | null = null;
+		const len = posts.length;
+		if (len > 0 && len === 10) {
+			newCursor = posts[len - 1].id;
+		}
+
+		const mappedPosts = posts.map(post =>
+			createFeedResponseForPostandUserId(
+				post,
+				user.id,
+				blockedUsers.map(user => user.blockedUserId)
 			)
 		);
+
+		res.status(200).json({ data: mappedPosts, cursor: newCursor });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Server error' });

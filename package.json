@@ -9,7 +9,7 @@
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "compile": "tsc",
-    "dev": "ts-node-dev --respawn ./src/index.ts"
+    "dev": "ts-node ./src/index.ts"
   },
   "dependencies": {
     "@prisma/client": "4.10.1",

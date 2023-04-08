@@ -43,3 +43,5 @@ config
 .DS_Store
 
 sendgrid.env
+
+dist

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import express from 'express';
 import SendGrid from '@sendgrid/mail';
+SendGrid.setApiKey(process.env.SENDGRID_API_KEY || '');
 
 import { prisma } from '../../app';
 import { auth } from '../../middleware/auth';
@@ -178,7 +179,7 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 		});
 
 		const message = {
-			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			from: { email: 'notify@vividly.love', name: 'Vividly' },
 			to: { email: email, name: user.name },
 			subject: 'Verify your email',
 			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}/${code}">here</a> to verify your email</p>`,

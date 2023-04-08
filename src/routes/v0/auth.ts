@@ -2,8 +2,11 @@ import { Request, Response } from 'express';
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import SendGrid from '@sendgrid/mail';
+import { User } from '@prisma/client';
 
-SendGrid.setApiKey(process.env.SENDGRID_API_KEY || '');
+SendGrid.setApiKey(
+	process.env.SENDGRID_DEV_API_KEY || process.env.SENDGRID_API_KEY || ''
+);
 
 import { prisma } from '../../app';
 import { auth } from '../../middleware/auth';
@@ -95,6 +98,8 @@ router.post('/register', async (req: Request, res: Response) => {
 		return res.status(400).json({ msg: 'Invalid email' });
 	}
 
+	let newUser: User | null = null;
+
 	try {
 		// check if username already exists
 		const usernameTaken = await prisma.user.findUnique({
@@ -128,7 +133,7 @@ router.post('/register', async (req: Request, res: Response) => {
 		const salt = await bcrypt.genSalt(10);
 		const hash = await bcrypt.hash(password, salt);
 
-		const newUser = await prisma.user.create({
+		newUser = await prisma.user.create({
 			data: {
 				username,
 				name: name || username,
@@ -144,7 +149,7 @@ router.post('/register', async (req: Request, res: Response) => {
 		});
 
 		const message = {
-			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			from: { email: 'notify@vividly.love', name: 'Vividly' },
 			to: {
 				email,
 				name: username,
@@ -179,7 +184,19 @@ router.post('/register', async (req: Request, res: Response) => {
 			token,
 		});
 	} catch (error) {
+		if (newUser) {
+			await prisma.user.delete({
+				where: {
+					id: newUser.id,
+				},
+			});
+		}
 		console.log('error signing up:', error);
+		// @ts-ignore
+		if (error && error.response && error.response.body) {
+			// @ts-ignore
+			console.log(error.response.body);
+		}
 		res
 			.status(500)
 			.json({ succcess: false, msg: 'unable to create account at this time' });
@@ -276,7 +293,7 @@ router.get('/verify', auth, async (req: Request, res: Response) => {
 		}
 
 		const message = {
-			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			from: { email: 'notify@vividly.love', name: 'Vividly' },
 			to: { email: authUser.email, name: authUser.user.name },
 			subject: 'Verify your email',
 			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}/${authUser.verificationCode}">here</a> to verify your email</p>`,
@@ -382,7 +399,7 @@ router.post('/password/reset-request', async (req: Request, res: Response) => {
 
 		const passwordResetLink = `http://localhost:3000/password/reset/${authUser.userId}/${code}`;
 		const message = {
-			from: { email: 'peached.app@gmail.com', name: 'Vividly' },
+			from: { email: 'notify@vividly.love', name: 'Vividly' },
 			to: { email: authUser.email, name: authUser.user.name },
 			subject: 'Verify your email',
 			html: `<p>Click <a href="${passwordResetLink}">here</a> to reset your password</p>`,
