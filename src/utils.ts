@@ -19,20 +19,14 @@ const validEmails = ['peached.app+120@gmail.com', 'peached.app+124@gmail.com'];
 
 // validate email
 export function validateEmail(email: string) {
-	// const emailRegex =
-	// /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
-	// only test email accounts for now
-	// const emailRegex = /^peached\.app\+[1-9][0-9]?@gmail\.com$/;
-	// return emailRegex.test(email);
 	if (email.startsWith('peached.app+') && email.endsWith('@gmail.com')) {
 		return true;
 	}
 	return false;
-	// return validEmails.includes(email);
 }
 
 export function validateName(name: string) {
-	const nameRegex = /^[\p{L}\p{N}\p{P}\p{Emoji}]{1,20}$/u;
+	const nameRegex = /^[\s\S]{1,20}$/;
 	return nameRegex.test(name);
 }
 

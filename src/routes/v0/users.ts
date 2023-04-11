@@ -26,7 +26,9 @@ router.get(
 		const { username } = req.params;
 
 		if (!validateUsername(username)) {
-			return res.status(400).json({ error: 'Invalid username' });
+			return res
+				.status(400)
+				.json({ success: false, error: 'Invalid username' });
 		}
 
 		try {
@@ -37,13 +39,15 @@ router.get(
 			});
 
 			if (user) {
-				return res.status(200).json({ exists: true });
+				return res.status(200).json({ sucess: true, exists: true });
 			}
 
-			return res.status(200).json({ exists: false });
+			return res.status(200).json({ success: true, exists: false });
 		} catch (err) {
 			console.error(err);
-			return res.status(500).json({ error: 'Internal server error' });
+			return res
+				.status(500)
+				.json({ success: false, error: 'Internal server error' });
 		}
 	}
 );
@@ -56,7 +60,7 @@ router.post('/username/change', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
 
 	if (!validateUsername(username)) {
-		return res.status(400).json({ error: 'Invalid username' });
+		return res.status(400).json({ success: false, error: 'Invalid username' });
 	}
 
 	try {
@@ -67,7 +71,7 @@ router.post('/username/change', auth, async (req: Request, res: Response) => {
 		});
 
 		if (usernameUser) {
-			return res.status(400).json({ error: 'Username taken' });
+			return res.status(400).json({ success: false, error: 'Username taken' });
 		}
 
 		await prisma.user.update({
@@ -83,7 +87,9 @@ router.post('/username/change', auth, async (req: Request, res: Response) => {
 		return res.status(200).json({ success: true });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -94,7 +100,7 @@ router.get('/email/exists/:email', async (req: Request, res: Response) => {
 	const { email } = req.params;
 
 	if (!validateEmail(email)) {
-		return res.status(400).json({ error: 'Invalid email' });
+		return res.status(400).json({ success: false, error: 'Invalid email' });
 	}
 
 	try {
@@ -105,13 +111,15 @@ router.get('/email/exists/:email', async (req: Request, res: Response) => {
 		});
 
 		if (user) {
-			return res.status(200).json({ exists: true });
+			return res.status(200).json({ success: true, exists: true });
 		}
 
-		return res.status(200).json({ exists: false });
+		return res.status(200).json({ success: true, exists: false });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -123,7 +131,7 @@ router.post('/name/change', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
 
 	if (!validateName(name)) {
-		return res.status(400).json({ error: 'Invalid name' });
+		return res.status(400).json({ success: false, error: 'Invalid name' });
 	}
 
 	try {
@@ -139,7 +147,9 @@ router.post('/name/change', auth, async (req: Request, res: Response) => {
 		return res.status(200).json({ success: true });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -162,7 +172,7 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 		});
 
 		if (emailUser) {
-			return res.status(400).json({ error: 'Email taken' });
+			return res.status(400).json({ success: false, error: 'Email taken' });
 		}
 
 		const code = generateVerificationCode();
@@ -196,7 +206,9 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 		return res.status(200).json({ success: true });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -215,7 +227,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!userResult) {
-			return res.status(404).json({ error: 'User not found' });
+			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
 		// get users blocked by result user
@@ -230,7 +242,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		});
 
 		if (userResultBlockedUsers) {
-			return res.status(404).json({ error: 'User not found' });
+			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
 		// get users blocked by requesting user
@@ -284,6 +296,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		}
 
 		return res.status(200).json({
+			success: true,
 			user: {
 				id: userResult.id,
 				username: userResult.username,
@@ -297,7 +310,9 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		});
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -310,7 +325,7 @@ router.post('/avatar/change', auth, async (req: Request, res: Response) => {
 
 	try {
 		if (!validateImgSrc(avatarSrc)) {
-			return res.status(400).json({ error: 'Invalid avatar' });
+			return res.status(400).json({ success: false, error: 'Invalid avatar' });
 		}
 
 		await prisma.user.update({
@@ -325,7 +340,9 @@ router.post('/avatar/change', auth, async (req: Request, res: Response) => {
 		return res.status(200).json({ success: true });
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 
@@ -338,15 +355,15 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 
 	try {
 		if (!validateImgSrc(avatarSrc)) {
-			return res.status(400).json({ error: 'Invalid avatar' });
+			return res.status(400).json({ success: false, error: 'Invalid avatar' });
 		}
 
 		if (!validateName(name)) {
-			return res.status(400).json({ error: 'Invalid name' });
+			return res.status(400).json({ success: false, error: 'Invalid name' });
 		}
 
 		if (!validateBio(bio)) {
-			return res.status(400).json({ error: 'Invalid bio' });
+			return res.status(400).json({ success: false, error: 'Invalid bio' });
 		}
 
 		await prisma.user.update({
@@ -360,10 +377,48 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		return res.status(200).json({ success: true });
+		return res.status(200).json({
+			success: true,
+			user: { id: user.id, bio, name, avatarSrc, username: user.username },
+		});
 	} catch (err) {
 		console.error(err);
-		return res.status(500).json({ error: 'Internal server error' });
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
+	}
+});
+
+// @route GET /v0/users/info/me
+// @desc Get current user
+// @access Private
+router.get('/info/me', auth, async (req: Request, res: Response) => {
+	const user = req.user as RequestUser;
+
+	try {
+		const userResult = await prisma.user.findUnique({
+			where: {
+				id: user.id,
+			},
+			select: {
+				id: true,
+				username: true,
+				name: true,
+				bio: true,
+				avatarSrc: true,
+			},
+		});
+
+		if (!userResult) {
+			return res.status(404).json({ success: false, error: 'User not found' });
+		}
+
+		return res.status(200).json({ success: true, user: userResult });
+	} catch (err) {
+		console.error(err);
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 

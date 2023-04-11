@@ -21,107 +21,118 @@ router.get('/', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json(friends);
+		res.status(200).json({ friends: friends, success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
-// @route  POST /v0/friends/add/:userid
-// @desc   Add a friend
+// @route  POST /v0/friends/add/:username
+// @desc   Add a friend by username
 // @access Private
-router.post(
-	'/add/:userid',
-	[auth, verifyEmail],
-	async (req: Request, res: Response) => {
-		try {
-			const user = req.user as RequestUser;
-			const { userid } = req.params;
+router.post('/add/:username', [auth], async (req: Request, res: Response) => {
+	try {
+		const user = req.user as RequestUser;
+		const { username } = req.params;
 
-			if (user.id === userid) {
-				return res.status(403).json({ error: 'Cannot add self as friend' });
-			}
-
-			const otherUser = await prisma.user.findUnique({
-				where: {
-					id: userid,
-				},
-			});
-
-			if (!otherUser) {
-				return res.status(404).json({ error: 'User not found' });
-			}
-
-			// check if user is blocked by other user
-			const isUser1BlockedByUser2 = await prisma.blockedUser.findFirst({
-				where: {
-					blockedUserId: user.id,
-					blockerId: userid,
-				},
-			});
-
-			if (isUser1BlockedByUser2) {
-				return res
-					.status(403)
-					.json({ error: 'Cannot send friend request to user' });
-			}
-
-			const ifUser2BlockedUser1 = await prisma.blockedUser.findFirst({
-				where: {
-					blockedUserId: userid,
-					blockerId: user.id,
-				},
-			});
-
-			if (ifUser2BlockedUser1) {
-				return res
-					.status(403)
-					.json({ error: 'Cannot send friend request to user' });
-			}
-
-			// check if user is already friends with other user
-			const isUser1FriendsWithUser2 = await prisma.friendship.findFirst({
-				where: {
-					userId: user.id,
-					friendId: userid,
-				},
-			});
-
-			if (isUser1FriendsWithUser2) {
-				return res.status(403).json({ error: 'Already friends with user' });
-			}
-
-			// check if user has already sent a friend request to other user
-			const hasUser1SentFriendRequestToUser2 =
-				await prisma.friendRequest.findFirst({
-					where: {
-						fromUserId: user.id,
-						toUserId: userid,
-					},
-				});
-
-			if (hasUser1SentFriendRequestToUser2) {
-				return res
-					.status(403)
-					.json({ error: 'Already sent friend request to user' });
-			}
-
-			const friend = await prisma.friendRequest.create({
-				data: {
-					fromUserId: user.id,
-					toUserId: userid,
-					createdTime: new Date(),
-				},
-			});
-
-			res.status(200).json(friend);
-		} catch (error) {
-			console.error(error);
-			res.status(500).json({ error: 'Server error' });
+		if (username === user.username) {
+			return res
+				.status(403)
+				.json({ success: false, error: 'Cannot add self as friend' });
 		}
+
+		const otherUser = await prisma.user.findUnique({
+			where: {
+				username: username,
+			},
+		});
+
+		if (!otherUser) {
+			return res.status(404).json({ success: false, error: 'User not found' });
+		}
+
+		// check if user is blocked by other user
+		const isUser1BlockedByUser2 = await prisma.blockedUser.findFirst({
+			where: {
+				blockedUserId: user.id,
+				blockerId: otherUser.id,
+			},
+		});
+
+		if (isUser1BlockedByUser2) {
+			return res
+				.status(403)
+				.json({ success: true, error: 'Cannot send friend request to user' });
+		}
+
+		const ifUser2BlockedUser1 = await prisma.blockedUser.findFirst({
+			where: {
+				blockedUserId: otherUser.id,
+				blockerId: user.id,
+			},
+		});
+
+		if (ifUser2BlockedUser1) {
+			return res
+				.status(403)
+				.json({ success: true, error: 'Cannot send friend request to user' });
+		}
+
+		// check if user is already friends with other user
+		const isUser1FriendsWithUser2 = await prisma.friendship.findFirst({
+			where: {
+				userId: user.id,
+				friendId: otherUser.id,
+			},
+		});
+
+		if (isUser1FriendsWithUser2) {
+			return res
+				.status(403)
+				.json({ success: true, error: 'Already friends with user' });
+		}
+
+		// check if user has already sent a friend request to other user
+		const hasUser1SentFriendRequestToUser2 =
+			await prisma.friendRequest.findFirst({
+				where: {
+					fromUserId: user.id,
+					toUserId: otherUser.id,
+				},
+			});
+
+		if (hasUser1SentFriendRequestToUser2) {
+			return res.status(403).json({
+				success: true,
+				error: 'Already sent friend request to user',
+			});
+		}
+
+		const request = await prisma.friendRequest.create({
+			data: {
+				fromUserId: user.id,
+				toUserId: otherUser.id,
+				createdTime: new Date(),
+			},
+			include: {
+				toUser: true,
+			},
+		});
+
+		res.status(200).json({
+			friendRequest: {
+				id: request.id,
+				createdTime: request.createdTime,
+				user: request.toUser,
+			},
+			success: true,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
-);
+});
 
 // @route POST /v0/friends/accept/:userid
 // @desc Accept a friend request
@@ -142,7 +153,9 @@ router.post(
 			});
 
 			if (!friendRequest) {
-				return res.status(404).json({ error: 'Friend request not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Friend request not found' });
 			}
 
 			const friendToUser = await prisma.friendship.create({
@@ -162,7 +175,7 @@ router.post(
 			});
 
 			if (!friendToUser || !userToFriend) {
-				return res.status(500).json({ error: 'Server error' });
+				return res.status(500).json({ success: false, error: 'Server error' });
 			}
 
 			// delete friend request
@@ -172,10 +185,17 @@ router.post(
 				},
 			});
 
-			res.status(200).json(friendToUser);
+			const friendship = {
+				id: friendToUser.id,
+				isFavorite: friendToUser.isFavorite,
+				lastReadPostTime: friendToUser.lastReadPostTime,
+				friendType: friendToUser.friendType,
+			};
+
+			res.status(200).json({ friendship, success: true });
 		} catch (error) {
 			console.error(error);
-			res.status(500).json({ error: 'Server error' });
+			res.status(500).json({ success: false, error: 'Server error' });
 		}
 	}
 );
@@ -196,7 +216,9 @@ router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!friendRequest) {
-			return res.status(404).json({ error: 'Friend request not found' });
+			return res
+				.status(404)
+				.json({ success: false, error: 'Friend request not found' });
 		}
 
 		// delete friend request
@@ -206,10 +228,10 @@ router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json({ message: 'Friend request rejected' });
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
@@ -229,7 +251,9 @@ router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!friendRequest) {
-			return res.status(404).json({ error: 'Friend request not found' });
+			return res
+				.status(404)
+				.json({ success: false, error: 'Friend request not found' });
 		}
 
 		// delete friend request
@@ -239,10 +263,10 @@ router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json({ message: 'Friend request rescinded' });
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
@@ -262,7 +286,9 @@ router.post('/unfriend/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!friendship) {
-			return res.status(404).json({ error: 'Friend not found' });
+			return res
+				.status(404)
+				.json({ success: false, error: 'Friend not found' });
 		}
 
 		// delete friendship
@@ -272,10 +298,10 @@ router.post('/unfriend/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json({ message: 'Friendship ended' });
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
@@ -327,12 +353,13 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 		});
 
 		res.status(200).json({
+			success: true,
 			inbound: formatFriendRequestsResponse(inboundRequests),
 			outbound: formatFriendRequestsResponse(outboundRequests),
 		});
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
@@ -355,7 +382,9 @@ router.post(
 			});
 
 			if (!friendship) {
-				return res.status(404).json({ error: 'Friend not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Friend not found' });
 			}
 
 			const updatedFriendship = await prisma.friendship.update({
@@ -367,10 +396,10 @@ router.post(
 				},
 			});
 
-			res.status(200).json(updatedFriendship);
+			res.status(200).json({ friendship: updatedFriendship, success: true });
 		} catch (error) {
 			console.error(error);
-			res.status(500).json({ error: 'Server error' });
+			res.status(500).json({ success: false, error: 'Server error' });
 		}
 	}
 );
@@ -394,7 +423,9 @@ router.post(
 			});
 
 			if (!friendship) {
-				return res.status(404).json({ error: 'Friend not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Friend not found' });
 			}
 
 			const updatedFriendship = await prisma.friendship.update({
@@ -406,10 +437,10 @@ router.post(
 				},
 			});
 
-			res.status(200).json(updatedFriendship);
+			res.status(200).json({ friendship: updatedFriendship, success: true });
 		} catch (error) {
 			console.error(error);
-			res.status(500).json({ error: 'Server error' });
+			res.status(500).json({ success: false, error: 'Server error' });
 		}
 	}
 );

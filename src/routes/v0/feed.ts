@@ -50,7 +50,7 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!otherUser) {
-			return res.status(404).json({ error: 'User not found' });
+			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
 		if (userid !== user.id) {
@@ -62,7 +62,9 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			});
 
 			if (!friendship) {
-				return res.status(403).json({ error: 'Cannot view feed' });
+				return res
+					.status(403)
+					.json({ success: false, error: 'Cannot view feed' });
 			}
 		}
 
@@ -146,10 +148,12 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			)
 		);
 
-		res.status(200).json({ data: mappedPosts, cursor: newCursor });
+		res
+			.status(200)
+			.json({ success: true, data: mappedPosts, cursor: newCursor });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 
@@ -168,7 +172,7 @@ router.post('/uid/:userid/read', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!otherUser) {
-			return res.status(404).json({ error: 'User not found' });
+			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
 		const friendship = await prisma.friendship.findFirst({
@@ -179,7 +183,9 @@ router.post('/uid/:userid/read', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!friendship) {
-			return res.status(403).json({ error: 'Cannot mark feed as read' });
+			return res
+				.status(403)
+				.json({ success: false, error: 'Cannot mark feed as read' });
 		}
 
 		await prisma.friendship.update({
@@ -190,10 +196,10 @@ router.post('/uid/:userid/read', auth, async (req: Request, res: Response) => {
 				lastReadPostTime: new Date(),
 			},
 		});
-		res.status(200).json({ message: 'Marked feed as read' });
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 

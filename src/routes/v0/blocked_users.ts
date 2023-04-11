@@ -42,7 +42,7 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!otherUser) {
-			return res.status(404).json({ error: 'User not found' });
+			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
 		// check if user is already blocked
@@ -54,7 +54,9 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 		});
 
 		if (isUserBlocked) {
-			return res.status(403).json({ error: 'User is already blocked' });
+			return res
+				.status(403)
+				.json({ success: true, error: 'User is already blocked' });
 		}
 
 		// check if user is already a friend
@@ -79,7 +81,7 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		const blockedUser = await prisma.blockedUser.create({
+		await prisma.blockedUser.create({
 			data: {
 				blockedUser: {
 					connect: {
@@ -115,10 +117,10 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 			});
 		}
 
-		res.status(200).json(blockedUser);
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ error: 'Server error' });
+		res.status(500).json({ success: false, error: 'Server error' });
 	}
 });
 

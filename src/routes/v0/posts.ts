@@ -93,12 +93,10 @@ async function createPostResponseForUserId(userId: string, post: Post) {
 			postId: post.id,
 		},
 		orderBy: {
-			createdTime: 'desc',
+			createdTime: 'asc',
 		},
-		select: {
-			id: true,
-			authorId: true,
-			content: true,
+		include: {
+			author: true,
 		},
 	});
 
@@ -109,7 +107,7 @@ async function createPostResponseForUserId(userId: string, post: Post) {
 		authorId: post.authorId,
 		content: post.content,
 		likes: likesLen,
-		likedByUser,
+		isLikedByUser: likedByUser,
 		comments,
 		author: {
 			id: author.id,
@@ -155,7 +153,7 @@ async function createCommentReplyResponse(
 
 // @route GET v0/posts
 // @desc Get Post by ID
-// @access Public
+// @access Private
 router.get(
 	'/:id',
 	[auth, postMiddleware],
@@ -163,14 +161,16 @@ router.get(
 		const { post, user } = req;
 		try {
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			const canView = await canUserViewPost(user, post);
 			if (!canView) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot view this post' });
+					.json({ success: false, error: 'You cannot view this post' });
 			}
 
 			const postResponse = await createPostResponseForUserId(user.id, post);
@@ -195,13 +195,13 @@ router.post('/:id/like', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!post || !user) {
-			return res.status(404).json({ success: false, msg: 'Post not found' });
+			return res.status(404).json({ success: false, error: 'Post not found' });
 		}
 
 		if (!canUserViewPost(user, post)) {
 			return res
 				.status(403)
-				.json({ success: false, msg: 'You cannot view this post' });
+				.json({ success: false, error: 'You cannot view this post' });
 		}
 
 		const liked = post.likedByIds.find(userId => userId === user.id);
@@ -209,7 +209,7 @@ router.post('/:id/like', auth, async (req: Request, res: Response) => {
 		if (liked) {
 			return res
 				.status(400)
-				.json({ success: false, msg: 'You already liked this post' });
+				.json({ success: false, error: 'You already liked this post' });
 		}
 
 		await prisma.post.update({
@@ -240,13 +240,15 @@ router.post(
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (!canUserViewPost(user, post)) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot view this post' });
+					.json({ success: false, error: 'You cannot view this post' });
 			}
 
 			const liked = post.likedByIds.find(userId => userId === user.id);
@@ -254,7 +256,7 @@ router.post(
 			if (!liked) {
 				return res
 					.status(400)
-					.json({ success: false, msg: 'You have not liked this post' });
+					.json({ success: false, error: 'You have not liked this post' });
 			}
 
 			await prisma.post.update({
@@ -282,24 +284,26 @@ router.post('/', auth, async (req: Request, res: Response) => {
 	const { user } = req;
 
 	if (!user) {
-		return res.status(401).json({ success: false, msg: 'Unauthorized' });
+		return res.status(401).json({ success: false, error: 'Unauthorized' });
 	}
 
 	try {
 		const { content } = req.body;
 		if (!content) {
-			return res.status(400).json({ success: false, msg: 'Invalid post' });
+			return res.status(400).json({ success: false, error: 'Invalid post' });
 		}
 
 		const contentLength = content.length;
 
 		if (contentLength === 0) {
-			return res.status(400).json({ success: false, msg: 'Invalid post' });
+			return res.status(400).json({ success: false, error: 'Invalid post' });
 		}
 
 		// this isn't implemented in the frontend yet
 		if (contentLength > MAX_POST_BLOCKS) {
-			return res.status(400).json({ success: false, msg: 'Post is too long' });
+			return res
+				.status(400)
+				.json({ success: false, error: 'Post is too long' });
 		}
 
 		const post = await prisma.post.create({
@@ -331,13 +335,15 @@ router.delete(
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot delete this post' });
+					.json({ success: false, error: 'You cannot delete this post' });
 			}
 
 			await prisma.post.delete({
@@ -364,30 +370,32 @@ router.put(
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot update this post' });
+					.json({ success: false, error: 'You cannot update this post' });
 			}
 
 			const { content } = req.body;
 			if (!content) {
-				return res.status(400).json({ success: false, msg: 'Invalid post' });
+				return res.status(400).json({ success: false, error: 'Invalid post' });
 			}
 
 			const contentLength = content.length;
 
 			if (contentLength === 0) {
-				return res.status(400).json({ success: false, msg: 'Invalid post' });
+				return res.status(400).json({ success: false, error: 'Invalid post' });
 			}
 
 			if (contentLength > MAX_POST_BLOCKS) {
 				return res
 					.status(400)
-					.json({ success: false, msg: 'Post is too long' });
+					.json({ success: false, error: 'Post is too long' });
 			}
 
 			await prisma.post.update({
@@ -422,14 +430,16 @@ router.get(
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (!canUserViewPost(user, post)) {
 				return res
 
 					.status(403)
-					.json({ success: false, msg: 'You cannot view this post' });
+					.json({ success: false, error: 'You cannot view this post' });
 			}
 
 			const comments = await prisma.comment.findMany({
@@ -485,29 +495,35 @@ router.post(
 		try {
 			const { content } = req.body;
 			if (!content) {
-				return res.status(400).json({ success: false, msg: 'Invalid comment' });
+				return res
+					.status(400)
+					.json({ success: false, error: 'Invalid comment' });
 			}
 
 			if (!post || !user) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			const canComment = await canUserCommentOnPost(user, post);
 			if (!canComment) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot comment on this post' });
+					.json({ success: false, error: 'You cannot comment on this post' });
 			}
 
 			const contentLength = content.length;
 			if (contentLength === 0) {
-				return res.status(400).json({ success: false, msg: 'Invalid comment' });
+				return res
+					.status(400)
+					.json({ success: false, error: 'Invalid comment' });
 			}
 
 			if (contentLength > MAX_COMMENT_LENGTH) {
 				return res
 					.status(400)
-					.json({ success: false, msg: 'Comment is too long' });
+					.json({ success: false, error: 'Comment is too long' });
 			}
 
 			const comment = await prisma.comment.create({
@@ -553,13 +569,13 @@ router.delete(
 			if (!comment || !user || !post) {
 				return res
 					.status(404)
-					.json({ success: false, msg: 'Comment not found' });
+					.json({ success: false, error: 'Comment not found' });
 			}
 
 			if (comment.authorId !== user.id && post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot delete this comment' });
+					.json({ success: false, error: 'You cannot delete this comment' });
 			}
 
 			await prisma.comment.delete({
@@ -594,31 +610,35 @@ router.post(
 			if (!comment || !user || !post) {
 				return res
 					.status(404)
-					.json({ success: false, msg: 'Comment not found' });
+					.json({ success: false, error: 'Comment not found' });
 			}
 
 			const { content } = req.body;
 			if (!content) {
-				return res.status(400).json({ success: false, msg: 'Invalid comment' });
+				return res
+					.status(400)
+					.json({ success: false, error: 'Invalid comment' });
 			}
 
 			const contentLength = content.length;
 
 			if (contentLength === 0) {
-				return res.status(400).json({ success: false, msg: 'Invalid comment' });
+				return res
+					.status(400)
+					.json({ success: false, error: 'Invalid comment' });
 			}
 
 			if (contentLength > MAX_COMMENT_LENGTH) {
 				return res
 					.status(400)
-					.json({ success: false, msg: 'Comment is too long' });
+					.json({ success: false, error: 'Comment is too long' });
 			}
 
 			const canComment = await canUserCommentOnPost(user, post);
 			if (!canComment) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot reply to this comment' });
+					.json({ success: false, error: 'You cannot reply to this comment' });
 			}
 
 			const reply = await prisma.commentReply.create({
@@ -657,13 +677,15 @@ router.delete(
 			});
 
 			if (!reply || !user || !post) {
-				return res.status(404).json({ success: false, msg: 'Reply not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Reply not found' });
 			}
 
 			if (reply.authorId !== user.id && post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot delete this reply' });
+					.json({ success: false, error: 'You cannot delete this reply' });
 			}
 
 			await prisma.commentReply.delete({
@@ -690,13 +712,15 @@ router.post(
 
 		try {
 			if (!user || !post) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot disable comments' });
+					.json({ success: false, error: 'You cannot disable comments' });
 			}
 
 			await prisma.post.update({
@@ -726,13 +750,15 @@ router.post(
 
 		try {
 			if (!user || !post) {
-				return res.status(404).json({ success: false, msg: 'Post not found' });
+				return res
+					.status(404)
+					.json({ success: false, error: 'Post not found' });
 			}
 
 			if (post.authorId !== user.id) {
 				return res
 					.status(403)
-					.json({ success: false, msg: 'You cannot enable comments' });
+					.json({ success: false, error: 'You cannot enable comments' });
 			}
 
 			await prisma.post.update({
