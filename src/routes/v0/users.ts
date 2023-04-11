@@ -216,8 +216,8 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 // @desc Get user by id
 // @access Public
 router.get('/:id', auth, async (req: Request, res: Response) => {
-	const { id } = req.params;
 	const user = req.user as RequestUser;
+	const id = parseInt(req.params.id);
 
 	try {
 		const userResult = await prisma.user.findUnique({
@@ -351,18 +351,22 @@ router.post('/avatar/change', auth, async (req: Request, res: Response) => {
 // @access Private
 router.post('/info/change', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
-	const { bio, name, avatarSrc } = req.body;
+	const { bio = null, name = null, avatarSrc = null } = req.body;
+
+	if (!bio && !name && !avatarSrc) {
+		return res.status(400).json({ success: false, error: 'No data provided' });
+	}
 
 	try {
-		if (!validateImgSrc(avatarSrc)) {
+		if (bio && !validateImgSrc(avatarSrc)) {
 			return res.status(400).json({ success: false, error: 'Invalid avatar' });
 		}
 
-		if (!validateName(name)) {
+		if (name && !validateName(name)) {
 			return res.status(400).json({ success: false, error: 'Invalid name' });
 		}
 
-		if (!validateBio(bio)) {
+		if (bio && !validateBio(bio)) {
 			return res.status(400).json({ success: false, error: 'Invalid bio' });
 		}
 
@@ -371,9 +375,9 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 				id: user.id,
 			},
 			data: {
-				bio,
-				name,
-				avatarSrc,
+				bio: bio || user.bio,
+				name: name || user.name,
+				avatarSrc: avatarSrc || user.avatarSrc,
 			},
 		});
 

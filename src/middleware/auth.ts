@@ -29,15 +29,21 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 		if (!id || !passwordHash) {
 			throw new Error('Invalid token');
 		}
+		const intId = parseInt(id);
 
 		prisma.user
 			.findUnique({
 				where: {
-					id,
+					id: intId,
 				},
-				include: {
+				select: {
 					authUser: true,
 					friends: true,
+					id: true,
+					name: true,
+					username: true,
+					bio: true,
+					avatarSrc: true,
 				},
 			})
 			.then(user => {
@@ -50,6 +56,7 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 					username: user.username,
 					bio: user.bio,
 					friends: user.friends,
+					avatarSrc: user.avatarSrc,
 				};
 				req.user = reqUser;
 				next();
@@ -61,29 +68,5 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 }
 
 export function verifyEmail(req: Request, res: Response, next: NextFunction) {
-	const user = req.user;
-	if (!user) {
-		return res.status(401).json({ success: false, msg: 'Not authorized' });
-	}
-	prisma.authUser
-		.findUnique({
-			where: {
-				userId: user.id,
-			},
-		})
-		.then(authUser => {
-			if (!authUser) {
-				return res.status(401).json({ success: false, msg: 'Not authorized' });
-			}
-
-			// if (!authUser.emailVerified) {
-			// 	return res.status(401).json({ success: false, msg: 'Not verified' });
-			// }
-
-			next();
-		})
-		.catch(e => {
-			console.error(e);
-			return res.status(500).json({ success: false, msg: 'Server error' });
-		});
+	next();
 }

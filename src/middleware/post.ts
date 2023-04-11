@@ -7,7 +7,7 @@ export function postMiddleware(
 	res: Response,
 	next: NextFunction
 ) {
-	const { id } = req.params;
+	const id = parseInt(req.params.id);
 	prisma.post
 		.findUnique({
 			where: {

@@ -31,7 +31,7 @@ export function validateName(name: string) {
 }
 
 // from user ids, check if user1 is blocked by user2
-export function isUserBlockedByUserByIds(user1Id: string, user2Id: string) {
+export function isUserBlockedByUserByIds(user1Id: number, user2Id: number) {
 	const user1BlockedByUser2 = prisma.blockedUser.findFirst({
 		where: {
 			blockedUserId: user1Id,
@@ -42,7 +42,7 @@ export function isUserBlockedByUserByIds(user1Id: string, user2Id: string) {
 	return user1BlockedByUser2 !== null;
 }
 
-export function getJwt(userId: string, passwordHash: string) {
+export function getJwt(userId: number, passwordHash: string) {
 	if (!JWT_SECRET) {
 		throw new Error('JWT_SECRET is not defined');
 	}

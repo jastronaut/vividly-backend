@@ -9,13 +9,13 @@ import { auth } from '../../middleware/auth';
 const router = express.Router();
 
 type CommentWithAuthor = Comment & {
-	author: { id: string; username: string; name: string; avatarSrc: string };
+	author: { id: number; username: string; name: string; avatarSrc: string };
 };
 
 function createFeedResponseForPostandUserId(
 	post: Post & { comments: CommentWithAuthor[] },
-	userId: string,
-	blockedUserIds: string[]
+	userId: number,
+	blockedUserIds: number[]
 ) {
 	const likedByUser = post.likedByIds.find(like => like === userId);
 	// can we do this with prisma?
@@ -34,18 +34,18 @@ function createFeedResponseForPostandUserId(
 	};
 }
 
-// @route  GET /v0/feed/uid/:userid
+// @route  GET /v0/feed/uid/:userId
 // @desc   Get feed for a user
 // @access Private
-router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
-	let cursor = req.query.cursor as string;
+router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
-	const { userid } = req.params;
+	const userId = parseInt(req.params.userId);
+	const cursor = parseInt(req.query.cursor as string);
 
 	try {
 		const otherUser = await prisma.user.findUnique({
 			where: {
-				id: userid,
+				id: userId,
 			},
 		});
 
@@ -53,11 +53,11 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			return res.status(404).json({ success: false, error: 'User not found' });
 		}
 
-		if (userid !== user.id) {
+		if (userId !== user.id) {
 			const friendship = await prisma.friendship.findFirst({
 				where: {
 					userId: user.id,
-					friendId: userid,
+					friendId: userId,
 				},
 			});
 
@@ -76,7 +76,7 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 					id: cursor,
 				},
 				where: {
-					authorId: userid,
+					authorId: userId,
 				},
 				take: 10,
 				skip: 1,
@@ -101,7 +101,7 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 		} else {
 			posts = await prisma.post.findMany({
 				where: {
-					authorId: userid,
+					authorId: userId,
 				},
 				take: 10,
 				orderBy: {
@@ -134,7 +134,7 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		let newCursor: string | null = null;
+		let newCursor: number | null = null;
 		const len = posts.length;
 		if (len > 0 && len === 10) {
 			newCursor = posts[len - 1].id;
@@ -157,17 +157,17 @@ router.get('/uid/:userid', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/feed/uid/:userid/read
+// @route POST /v0/feed/uid/:userId/read
 // @desc Mark feed as read
 // @access Private
-router.post('/uid/:userid/read', auth, async (req: Request, res: Response) => {
-	const { userid } = req.params;
+router.post('/uid/:userId/read', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
+	const userId = parseInt(req.params.userId);
 
 	try {
 		const otherUser = await prisma.user.findUnique({
 			where: {
-				id: userid,
+				id: userId,
 			},
 		});
 
@@ -178,7 +178,7 @@ router.post('/uid/:userid/read', auth, async (req: Request, res: Response) => {
 		const friendship = await prisma.friendship.findFirst({
 			where: {
 				userId: user.id,
-				friendId: userid,
+				friendId: userId,
 			},
 		});
 

@@ -41,7 +41,7 @@ export const getRandomMockUserData = async (): Promise<User> => {
 	});
 };
 
-export const getMockUserJwt = async (id: string, pw: string) => {
+export const getMockUserJwt = async (id: number, pw: string) => {
 	const salt = await bcrypt.genSalt(10);
 	const hash = await bcrypt.hash(pw, salt);
 	return getJwt(id, hash);

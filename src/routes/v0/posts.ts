@@ -1,9 +1,9 @@
-import { Comment, Post, CommentReply } from '@prisma/client';
+import { Comment, Post } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
 
 import { prisma } from '../../app';
-import { RequestUser } from '../../types/types';
+import { RequestUser, NotificationType } from '../../types/types';
 import { auth } from '../../middleware/auth';
 import { postMiddleware } from '../../middleware/post';
 
@@ -72,7 +72,7 @@ async function canUserCommentOnPost(user: RequestUser, post: Post) {
 	return true;
 }
 
-async function createPostResponseForUserId(userId: string, post: Post) {
+async function createPostResponseForUserId(userId: number, post: Post) {
 	const likesLen = post.likedByIds.length;
 	const likedByUser = post.likedByIds.find(id => id === userId) !== undefined;
 
@@ -117,7 +117,7 @@ async function createPostResponseForUserId(userId: string, post: Post) {
 		},
 	};
 }
-
+/*
 async function createCommentReplyResponse(
 	commentReply: CommentReply,
 	author?: RequestUser
@@ -150,6 +150,8 @@ async function createCommentReplyResponse(
 		author: replyAuthor,
 	};
 }
+
+*/
 
 // @route GET v0/posts
 // @desc Get Post by ID
@@ -185,8 +187,8 @@ router.get(
 // @desc Like a post
 // @access Private
 router.post('/:id/like', auth, async (req: Request, res: Response) => {
-	const { id } = req.params;
 	const { user } = req;
+	const id = parseInt(req.params.id);
 	try {
 		const post = await prisma.post.findUnique({
 			where: {
@@ -223,6 +225,24 @@ router.post('/:id/like', auth, async (req: Request, res: Response) => {
 			},
 		});
 
+		// create notification
+		if (post.authorId !== user.id) {
+			await prisma.notification.create({
+				data: {
+					userId: post.authorId,
+					createdTime: new Date(),
+					senderId: user.id,
+					body: {
+						type: NotificationType.POST_LIKE,
+						post: {
+							id: post.id,
+							block: post.content[0],
+						},
+					},
+				},
+			});
+		}
+
 		res.status(200).json({ success: true, likes: post.likedByIds.length + 1 });
 	} catch (err) {
 		res.status(500).json({ success: false, error: err });
@@ -236,7 +256,7 @@ router.post(
 	'/:id/unlike',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
-		const { id } = req.params;
+		const id = parseInt(req.params.id);
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
@@ -331,7 +351,7 @@ router.delete(
 	'/:id',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
-		const { id } = req.params;
+		const id = parseInt(req.params.id);
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
@@ -366,7 +386,7 @@ router.put(
 	'/:id',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
-		const { id } = req.params;
+		const id = parseInt(req.params.id);
 		const { user, post } = req;
 		try {
 			if (!post || !user) {
@@ -542,6 +562,26 @@ router.post(
 				postId: comment.postId,
 			};
 
+			// handle mentions?
+			// send notification
+			if (post.authorId !== user.id) {
+				await prisma.notification.create({
+					data: {
+						userId: post.authorId,
+						createdTime: new Date(),
+						senderId: user.id,
+						body: {
+							type: NotificationType.COMMENT,
+							message: content,
+							post: {
+								id: post.id,
+								block: post.content[0],
+							},
+						},
+					},
+				});
+			}
+
 			return res.status(200).json({ success: true, comment: commentResponse });
 		} catch (err) {
 			res.status(500).json({ success: false, error: err });
@@ -556,7 +596,7 @@ router.delete(
 	'/:id/comment/:commentId',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
-		const { commentId } = req.params;
+		const commentId = parseInt(req.params.commentId);
 		const { user, post } = req;
 
 		try {
@@ -591,6 +631,7 @@ router.delete(
 	}
 );
 
+/*
 // @route POST v0/posts/:id/comment/:commentId/reply
 // @desc Reply to a comment
 // @access Private
@@ -700,6 +741,8 @@ router.delete(
 		}
 	}
 );
+
+*/
 
 // @route POST v0/posts/:id/comments/disable
 // @desc Disable comments on a post

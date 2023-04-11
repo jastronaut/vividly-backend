@@ -134,7 +134,7 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/accept/:userid
+// @route POST /v0/friends/accept/:userId
 // @desc Accept a friend request
 // @access Private
 router.post(
@@ -143,7 +143,7 @@ router.post(
 	async (req: Request, res: Response) => {
 		try {
 			const user = req.user as RequestUser;
-			const { userId } = req.params;
+			const userId = parseInt(req.params.userId);
 
 			const friendRequest = await prisma.friendRequest.findFirst({
 				where: {
@@ -200,13 +200,13 @@ router.post(
 	}
 );
 
-// @route POST /v0/friends/reject/:userid
+// @route POST /v0/friends/reject/:userId
 // @desc Reject a friend request
 // @access Private
-router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
+router.post('/reject/:userId', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { userId } = req.params;
+		const userId = parseInt(req.params.userId);
 
 		const friendRequest = await prisma.friendRequest.findFirst({
 			where: {
@@ -235,13 +235,13 @@ router.post('/reject/:userid', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/rescind/:userid
+// @route POST /v0/friends/rescind/:userId
 // @desc Rescind a friend request
 // @access Private
-router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
+router.post('/rescind/:userId', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { userId } = req.params;
+		const userId = parseInt(req.params.userId);
 
 		const friendRequest = await prisma.friendRequest.findFirst({
 			where: {
@@ -270,13 +270,13 @@ router.post('/rescind/:userid', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/unfriend/:userid
+// @route POST /v0/friends/unfriend/:userId
 // @desc Unfriend a friend
 // @access Private
-router.post('/unfriend/:userid', auth, async (req: Request, res: Response) => {
+router.post('/unfriend/:userId', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { userId } = req.params;
+		const userId = parseInt(req.params.userId);
 
 		const friendship = await prisma.friendship.findFirst({
 			where: {
@@ -363,21 +363,21 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/favorites/:userid
+// @route POST /v0/friends/favorites/:userId
 // @desc Favorite a friend
 // @access Private
 router.post(
-	'/favorites/:userid',
+	'/favorites/:userId',
 	[auth, verifyEmail],
 	async (req: Request, res: Response) => {
 		try {
 			const user = req.user as RequestUser;
-			const { userid } = req.params;
+			const userId = parseInt(req.params.userId);
 
 			const friendship = await prisma.friendship.findFirst({
 				where: {
 					userId: user.id,
-					friendId: userid,
+					friendId: userId,
 				},
 			});
 
@@ -404,21 +404,21 @@ router.post(
 	}
 );
 
-// @route POST /v0/friends/unfavorite/:userid
+// @route POST /v0/friends/unfavorite/:userId
 // @desc Unfavorite a friend
 // @access Private
 router.post(
-	'/unfavorite/:userid',
+	'/unfavorite/:userId',
 	[auth, verifyEmail],
 	async (req: Request, res: Response) => {
 		try {
 			const user = req.user as RequestUser;
-			const { userid } = req.params;
+			const userId = parseInt(req.params.userId);
 
 			const friendship = await prisma.friendship.findFirst({
 				where: {
 					userId: user.id,
-					friendId: userid,
+					friendId: userId,
 				},
 			});
 

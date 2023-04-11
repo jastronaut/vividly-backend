@@ -8,6 +8,7 @@ import FriendHandlers from './routes/v0/friends';
 import BlockedUsersHandlers from './routes/v0/blocked_users';
 import UsersHandlers from './routes/v0/users';
 import WaitlistHandlers from './routes/v0/waitlist';
+import NotificationHandlers from './routes/v0/notifications';
 
 const app = express();
 app.use(express.json());
@@ -21,6 +22,7 @@ app.use('/v0/friends', FriendHandlers);
 app.use('/v0/blocked_users', BlockedUsersHandlers);
 app.use('/v0/users', UsersHandlers);
 app.use('/v0/waitlist', WaitlistHandlers);
+app.use('/v0/notifications', NotificationHandlers);
 
 const port = process.env.PORT || 1337;
 

@@ -318,7 +318,9 @@ router.get('/verify', auth, async (req: Request, res: Response) => {
 // @desc Verify user via code
 // @access Public
 router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
-	const { code, userId } = req.params;
+	const { code } = req.params;
+	const userId = parseInt(req.params.userId);
+
 	try {
 		const authUser = await prisma.authUser.findUnique({
 			where: {
@@ -424,7 +426,8 @@ router.post('/password/reset-request', async (req: Request, res: Response) => {
 router.post(
 	'/password/reset/:userId/:code',
 	async (req: Request, res: Response) => {
-		const { code, userId } = req.params;
+		const { code } = req.params;
+		const userId = parseInt(req.params.userId);
 		const { password } = req.body;
 		if (!password) {
 			return res.status(400).json({ msg: 'Please enter all fields' });

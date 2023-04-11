@@ -33,7 +33,7 @@ router.get('/', auth, async (req: Request, res: Response) => {
 router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { userid } = req.params;
+		const userid = parseInt(req.params.userid);
 
 		const otherUser = await prisma.user.findUnique({
 			where: {
@@ -130,7 +130,7 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 router.post('/unblock/:userid', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
-		const { userid } = req.params;
+		const userid = parseInt(req.params.userid);
 
 		const otherUser = await prisma.user.findUnique({
 			where: {
