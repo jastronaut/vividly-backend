@@ -12,7 +12,7 @@ datasource db {
 model Comment {
   id          Int      @id @default(autoincrement())
   content     String
-  createdTime DateTime @db.Date
+  createdTime DateTime
   author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   authorId    Int
   postId      Int
@@ -21,29 +21,23 @@ model Comment {
 
 model FriendRequest {
   id          Int      @id @default(autoincrement())
-  createdTime DateTime @db.Date
+  createdTime DateTime
   fromUser    User     @relation("friend requester", fields: [fromUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   toUser      User     @relation("friend request reciever", fields: [toUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   fromUserId  Int
   toUserId    Int
 }
 
-enum FriendType {
-  FRIEND
-  FOLLOWER
-  FOLLOWING
-}
-
 model Friendship {
-  id               Int        @id @default(autoincrement())
-  friendType       FriendType @default(FRIEND)
-  isFavorite       Boolean    @default(false)
+  id               Int      @id @default(autoincrement())
+  friendType       String
+  isFavorite       Boolean  @default(false)
   lastReadPostTime DateTime
   lastReadPostId   Int?
   friendId         Int
-  friend           User       @relation("FriendedUser", fields: [friendId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  friend           User     @relation("FriendedUser", fields: [friendId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId           Int
-  user             User       @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  user             User     @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
 model Post {
@@ -52,10 +46,10 @@ model Post {
   author           User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   comments         Comment[] @relation("PostComments")
   content          Json[]
-  createdTime      DateTime  @db.Date
+  createdTime      DateTime
   isUpdated        Boolean   @default(false)
   likedByIds       Int[]     @default([])
-  updatedTime      DateTime  @db.Date
+  updatedTime      DateTime
   commentsDisabled Boolean   @default(false)
 }
 
@@ -101,34 +95,26 @@ model User {
   friendRequests        FriendRequest[] @relation("friend requester")
   friendRequestReciever FriendRequest[] @relation("friend request reciever")
 
-  authUser     AuthUser?     @relation("AuthUser")
-  userSettings UserSettings? @relation("UserSettings")
-  comments     Comment[]
-  notifications Notification[]
+  authUser          AuthUser?      @relation("AuthUser")
+  userSettings      UserSettings?  @relation("UserSettings")
+  comments          Comment[]
+  notifications     Notification[]
   sentNotifications Notification[] @relation("NotificationSender")
 }
 
 model Waitlist {
   id          Int      @id @default(autoincrement())
   email       String   @unique
-  createdTime DateTime @db.Date
-}
-
-enum NotificationType {
-  post_like
-  post_mention
-  post_comment
-  comment_mention
-  announcement
+  createdTime DateTime
 }
 
 model Notification {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  createdTime DateTime @db.Date
-  body Json
-  isUnread Boolean @default(true)
-  senderId Int
-  sender User @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  createdTime DateTime
+  body        Json
+  isUnread    Boolean  @default(true)
+  senderId    Int
+  sender      User     @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }

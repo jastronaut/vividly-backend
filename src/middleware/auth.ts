@@ -48,7 +48,9 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 			})
 			.then(user => {
 				if (!user) {
-					throw new Error('User does not exist');
+					return res
+						.status(404)
+						.json({ success: false, msg: 'User not found' });
 				}
 				const reqUser = {
 					id: user.id,

@@ -36,9 +36,44 @@ router.get('/', auth, async (req: Request, res: Response) => {
 					},
 				},
 			},
+			take: 50,
 		});
 
-		return res.status(200).json({ success: true, notifications });
+		const unreadCount = await prisma.notification.count({
+			where: {
+				userId: user.id,
+				isUnread: true,
+			},
+		});
+
+		const totalCount = notifications.length;
+
+		return res
+			.status(200)
+			.json({ success: true, notifications, unreadCount, totalCount });
+	} catch (err) {
+		console.error(err);
+		return res.status(500).json({ success: false, error: err });
+	}
+});
+
+// @route POST /v0/notifications/read
+// @desc Mark notifications as read
+// @access Private
+router.post('/read', auth, async (req: Request, res: Response) => {
+	try {
+		const user = req.user as RequestUser;
+		await prisma.notification.updateMany({
+			where: {
+				userId: user.id,
+				isUnread: true,
+			},
+			data: {
+				isUnread: false,
+			},
+		});
+
+		return res.status(200).json({ success: true });
 	} catch (err) {
 		console.error(err);
 		return res.status(500).json({ success: false, error: err });

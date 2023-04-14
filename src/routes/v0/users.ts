@@ -267,6 +267,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 					friendId: userResult.id,
 				},
 				select: {
+					id: true,
 					isFavorite: true,
 					lastReadPostId: true,
 					lastReadPostTime: true,
@@ -288,6 +289,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 						],
 					},
 					select: {
+						id: true,
 						fromUserId: true,
 						toUserId: true,
 					},
@@ -358,7 +360,7 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 	}
 
 	try {
-		if (bio && !validateImgSrc(avatarSrc)) {
+		if (avatarSrc && !validateImgSrc(avatarSrc)) {
 			return res.status(400).json({ success: false, error: 'Invalid avatar' });
 		}
 
@@ -381,9 +383,17 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 			},
 		});
 
+		const updatedUser = {
+			id: user.id,
+			bio: bio || user.bio,
+			name: name || user.name,
+			avatarSrc: avatarSrc || user.avatarSrc,
+			username: user.username,
+		};
+
 		return res.status(200).json({
 			success: true,
-			user: { id: user.id, bio, name, avatarSrc, username: user.username },
+			user: updatedUser,
 		});
 	} catch (err) {
 		console.error(err);
