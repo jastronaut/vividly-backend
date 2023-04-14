@@ -19,6 +19,21 @@ router.get('/', auth, async (req: Request, res: Response) => {
 			where: {
 				userId: user.id,
 			},
+			select: {
+				id: true,
+				isFavorite: true,
+				lastReadPostId: true,
+				lastReadPostTime: true,
+				friend: {
+					select: {
+						id: true,
+						username: true,
+						avatarSrc: true,
+						bio: true,
+						name: true,
+					},
+				},
+			},
 		});
 
 		res.status(200).json({ friends: friends, success: true });
@@ -134,21 +149,33 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/accept/:userId
+// @route POST /v0/friends/requests/accept/:id
 // @desc Accept a friend request
 // @access Private
 router.post(
-	'/accept/:userId',
+	'/requests/accept/:id',
 	[auth, verifyEmail],
 	async (req: Request, res: Response) => {
 		try {
 			const user = req.user as RequestUser;
-			const userId = parseInt(req.params.userId);
+			const id = parseInt(req.params.id);
 
 			const friendRequest = await prisma.friendRequest.findFirst({
 				where: {
-					fromUserId: userId,
-					toUserId: user.id,
+					id: id,
+				},
+				select: {
+					id: true,
+					fromUserId: true,
+					fromUser: {
+						select: {
+							id: true,
+							username: true,
+							avatarSrc: true,
+							bio: true,
+							name: true,
+						},
+					},
 				},
 			});
 
@@ -161,21 +188,68 @@ router.post(
 			const friendToUser = await prisma.friendship.create({
 				data: {
 					userId: user.id,
-					friendId: userId,
+					friendId: friendRequest.fromUserId,
 					lastReadPostTime: new Date(),
+					friendType: 'FRIEND',
 				},
 			});
 
 			const userToFriend = await prisma.friendship.create({
 				data: {
-					userId: userId,
+					userId: friendRequest.fromUserId,
 					friendId: user.id,
 					lastReadPostTime: new Date(),
+					friendType: 'FRIEND',
 				},
 			});
 
 			if (!friendToUser || !userToFriend) {
 				return res.status(500).json({ success: false, error: 'Server error' });
+			}
+
+			const friendshipResponse = {
+				id: friendToUser.id,
+				isFavorite: friendToUser.isFavorite,
+				lastReadPostTime: friendToUser.lastReadPostTime,
+				friendType: friendToUser.friendType,
+				friend: friendRequest.fromUser,
+			};
+
+			// delete friend request
+			await prisma.friendRequest.delete({
+				where: {
+					id: friendRequest.id,
+				},
+			});
+
+			res.status(200).json({ friendship: friendshipResponse, success: true });
+		} catch (error) {
+			console.error(error);
+			res.status(500).json({ success: false, error: 'Server error' });
+		}
+	}
+);
+
+// @route POST /v0/friends/requests/reject/:id
+// @desc Reject a friend request
+// @access Private
+router.post(
+	'/requests/reject/:id',
+	auth,
+	async (req: Request, res: Response) => {
+		try {
+			const id = parseInt(req.params.id);
+
+			const friendRequest = await prisma.friendRequest.findFirst({
+				where: {
+					id,
+				},
+			});
+
+			if (!friendRequest) {
+				return res
+					.status(404)
+					.json({ success: false, error: 'Friend request not found' });
 			}
 
 			// delete friend request
@@ -185,14 +259,7 @@ router.post(
 				},
 			});
 
-			const friendship = {
-				id: friendToUser.id,
-				isFavorite: friendToUser.isFavorite,
-				lastReadPostTime: friendToUser.lastReadPostTime,
-				friendType: friendToUser.friendType,
-			};
-
-			res.status(200).json({ friendship, success: true });
+			res.status(200).json({ success: true });
 		} catch (error) {
 			console.error(error);
 			res.status(500).json({ success: false, error: 'Server error' });
@@ -200,75 +267,42 @@ router.post(
 	}
 );
 
-// @route POST /v0/friends/reject/:userId
-// @desc Reject a friend request
+// @route POST /v0/friends/requests/cancel/:id
+// @desc Cancel a friend request
 // @access Private
-router.post('/reject/:userId', auth, async (req: Request, res: Response) => {
-	try {
-		const user = req.user as RequestUser;
-		const userId = parseInt(req.params.userId);
+router.post(
+	'/requests/cancel/:id',
+	auth,
+	async (req: Request, res: Response) => {
+		try {
+			const id = parseInt(req.params.id);
 
-		const friendRequest = await prisma.friendRequest.findFirst({
-			where: {
-				fromUserId: userId,
-				toUserId: user.id,
-			},
-		});
+			const friendRequest = await prisma.friendRequest.findFirst({
+				where: {
+					id,
+				},
+			});
 
-		if (!friendRequest) {
-			return res
-				.status(404)
-				.json({ success: false, error: 'Friend request not found' });
+			if (!friendRequest) {
+				return res
+					.status(404)
+					.json({ success: false, error: 'Friend request not found' });
+			}
+
+			// delete friend request
+			await prisma.friendRequest.delete({
+				where: {
+					id: friendRequest.id,
+				},
+			});
+
+			res.status(200).json({ success: true });
+		} catch (error) {
+			console.error(error);
+			res.status(500).json({ success: false, error: 'Server error' });
 		}
-
-		// delete friend request
-		await prisma.friendRequest.delete({
-			where: {
-				id: friendRequest.id,
-			},
-		});
-
-		res.status(200).json({ success: true });
-	} catch (error) {
-		console.error(error);
-		res.status(500).json({ success: false, error: 'Server error' });
 	}
-});
-
-// @route POST /v0/friends/rescind/:userId
-// @desc Rescind a friend request
-// @access Private
-router.post('/rescind/:userId', auth, async (req: Request, res: Response) => {
-	try {
-		const user = req.user as RequestUser;
-		const userId = parseInt(req.params.userId);
-
-		const friendRequest = await prisma.friendRequest.findFirst({
-			where: {
-				fromUserId: user.id,
-				toUserId: userId,
-			},
-		});
-
-		if (!friendRequest) {
-			return res
-				.status(404)
-				.json({ success: false, error: 'Friend request not found' });
-		}
-
-		// delete friend request
-		await prisma.friendRequest.delete({
-			where: {
-				id: friendRequest.id,
-			},
-		});
-
-		res.status(200).json({ success: true });
-	} catch (error) {
-		console.error(error);
-		res.status(500).json({ success: false, error: 'Server error' });
-	}
-});
+);
 
 // @route POST /v0/friends/unfriend/:userId
 // @desc Unfriend a friend
@@ -278,23 +312,37 @@ router.post('/unfriend/:userId', auth, async (req: Request, res: Response) => {
 		const user = req.user as RequestUser;
 		const userId = parseInt(req.params.userId);
 
-		const friendship = await prisma.friendship.findFirst({
+		const friendshipForUser = await prisma.friendship.findFirst({
 			where: {
 				userId: user.id,
 				friendId: userId,
 			},
 		});
 
-		if (!friendship) {
+		const friendshipToUser = await prisma.friendship.findFirst({
+			where: {
+				userId: userId,
+				friendId: user.id,
+			},
+		});
+
+		if (!friendshipForUser || !friendshipToUser) {
 			return res
 				.status(404)
 				.json({ success: false, error: 'Friend not found' });
 		}
 
 		// delete friendship
-		await prisma.friendship.delete({
+		await prisma.friendship.deleteMany({
 			where: {
-				id: friendship.id,
+				OR: [
+					{
+						id: friendshipToUser.id,
+					},
+					{
+						id: friendshipForUser.id,
+					},
+				],
 			},
 		});
 
@@ -363,11 +411,11 @@ router.get('/requests', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/friends/favorites/:userId
+// @route POST /v0/friends/favorite/:userId
 // @desc Favorite a friend
 // @access Private
 router.post(
-	'/favorites/:userId',
+	'/favorite/:userId',
 	[auth, verifyEmail],
 	async (req: Request, res: Response) => {
 		try {
