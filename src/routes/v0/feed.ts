@@ -203,4 +203,48 @@ router.post('/uid/:userId/read', auth, async (req: Request, res: Response) => {
 	}
 });
 
+// @route  GET /v0/feed/friends
+// @desc   Get feed for all friends
+// @access Private
+router.get('/friends', auth, async (req: Request, res: Response) => {
+	const user = req.user as RequestUser;
+
+	try {
+		const friendships = await prisma.friendship.findMany({
+			where: {
+				userId: user.id,
+			},
+			select: {
+				isFavorite: true,
+				lastReadPostId: true,
+				lastReadPostTime: true,
+				friend: {
+					select: {
+						id: true,
+						name: true,
+						username: true,
+						avatarSrc: true,
+						posts: {
+							take: 1,
+							orderBy: {
+								createdTime: 'desc',
+							},
+							select: {
+								id: true,
+								createdTime: true,
+								content: true,
+							},
+						},
+					},
+				},
+			},
+		});
+
+		res.status(200).json({ success: true, data: friendships });
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ success: false, error: 'Server error' });
+	}
+});
+
 export default router;
