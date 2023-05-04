@@ -6,6 +6,8 @@ import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth, verifyEmail } from '../../middleware/auth';
 
+const MAX_FRIENDS = 500;
+
 const router = express.Router();
 
 // @route  GET /v0/friends
@@ -50,6 +52,16 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
 		const { username } = req.params;
+
+		// make sure we are under the max friends limit
+		const numFriends = user.friends.length;
+
+		if (numFriends >= MAX_FRIENDS) {
+			return res.status(403).json({
+				success: false,
+				error: `Cannot add more than ${MAX_FRIENDS} friends`,
+			});
+		}
 
 		if (username === user.username) {
 			return res
@@ -159,6 +171,16 @@ router.post(
 		try {
 			const user = req.user as RequestUser;
 			const id = parseInt(req.params.id);
+
+			// make sure we are under the max friends limit
+			const numFriends = user.friends.length;
+
+			if (numFriends >= MAX_FRIENDS) {
+				return res.status(403).json({
+					success: false,
+					error: `Cannot add more than ${MAX_FRIENDS} friends`,
+				});
+			}
 
 			const friendRequest = await prisma.friendRequest.findFirst({
 				where: {

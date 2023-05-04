@@ -377,17 +377,17 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 				id: user.id,
 			},
 			data: {
-				bio: bio || user.bio,
-				name: name || user.name,
-				avatarSrc: avatarSrc || user.avatarSrc,
+				bio: bio === null ? user.bio : bio,
+				name: name === null ? user.name : name,
+				avatarSrc: avatarSrc === null ? user.avatarSrc : avatarSrc,
 			},
 		});
 
 		const updatedUser = {
 			id: user.id,
-			bio: bio || user.bio,
-			name: name || user.name,
-			avatarSrc: avatarSrc || user.avatarSrc,
+			bio: user.bio,
+			name: user.name,
+			avatarSrc: user.avatarSrc,
 			username: user.username,
 		};
 
