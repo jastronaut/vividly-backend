@@ -188,12 +188,23 @@ router.post('/uid/:userId/read', auth, async (req: Request, res: Response) => {
 				.json({ success: false, error: 'Cannot mark feed as read' });
 		}
 
+		// get id of latest post
+		const latestPost = await prisma.post.findFirst({
+			where: {
+				authorId: userId,
+			},
+			orderBy: {
+				createdTime: 'desc',
+			},
+		});
+
 		await prisma.friendship.update({
 			where: {
 				id: friendship.id,
 			},
 			data: {
 				lastReadPostTime: new Date(),
+				lastReadPostId: latestPost?.id,
 			},
 		});
 		res.status(200).json({ success: true });

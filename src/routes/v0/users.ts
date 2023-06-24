@@ -297,6 +297,19 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 			}
 		}
 
+		// get ID of newest post
+		const newestPost = await prisma.post.findFirst({
+			where: {
+				authorId: userResult.id,
+			},
+			orderBy: {
+				createdTime: 'desc',
+			},
+			select: {
+				id: true,
+			},
+		});
+
 		return res.status(200).json({
 			success: true,
 			user: {
@@ -307,7 +320,10 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 				avatarSrc: userResult.avatarSrc,
 			},
 			isBlocked: !!userBlockedUsers,
-			friendship,
+			friendship: {
+				...friendship,
+				newestPostId: newestPost?.id,
+			},
 			friendRequest,
 		});
 	} catch (err) {
