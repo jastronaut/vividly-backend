@@ -340,15 +340,26 @@ router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
 		});
 
 		if (!authUser) {
-			return res.status(400).json({ msg: 'User does not exist' });
+			return res.status(400).json({
+				error: 'User does not exist',
+				errorCode: 'VERIFICATION_USER_DOES_NOT_EXIST',
+			});
 		}
 
 		if (authUser.emailVerified) {
-			return res.status(400).json({ msg: 'Email already verified' });
+			return res.status(400).json({
+				error: 'Email already verified',
+				errorCode: 'VERIFICATION_EMAIL_ALREADY_VERIFIED',
+			});
 		}
 
 		if (authUser.verificationCode !== code) {
-			return res.status(400).json({ msg: 'Invalid code' });
+			return res
+				.status(400)
+				.json({
+					error: 'Invalid code',
+					errorCode: 'VERIFICATION_CODE_INVALID',
+				});
 		}
 
 		await prisma.authUser.update({
@@ -361,10 +372,13 @@ router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
 			},
 		});
 
-		res.status(200).json({ msg: 'Email verified successfully' });
+		res.status(200).json({ msg: 'Email verified successfully', success: true });
 	} catch (error) {
 		console.log('error verifying email:', error);
-		res.status(500).json({ msg: 'Error verifying email' });
+		res.status(500).json({
+			error: 'Error verifying email',
+			errorCode: 'ERROR_VERIFYING_EMAIL',
+		});
 	}
 });
 
@@ -480,5 +494,37 @@ router.post(
 		}
 	}
 );
+
+// @route GET auth/info
+// @desc Get user auth info
+// @access Private
+router.get('/info', auth, async (req: Request, res: Response) => {
+	const user = req.user;
+
+	if (!user) {
+		return res.status(400).json({ msg: 'User does not exist' });
+	}
+
+	try {
+		const authUser = await prisma.authUser.findUnique({
+			where: {
+				userId: user.id,
+			},
+			select: {
+				email: true,
+				emailVerified: true,
+			},
+		});
+
+		if (!authUser) {
+			return res.status(400).json({ msg: 'User does not exist' });
+		}
+
+		res.status(200).json({ authUser });
+	} catch (error) {
+		console.log('error getting auth info:', error);
+		res.status(500).json({ msg: 'Error getting auth info' });
+	}
+});
 
 export default router;
