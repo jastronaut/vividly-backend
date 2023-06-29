@@ -65,10 +65,12 @@ model AuthUser {
   id               Int     @id @default(autoincrement())
   userId           Int     @unique
   user             User    @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  email            String  @unique(map: "email_1")
   password         String
+  email            String  @unique(map: "email_1")
+  newEmail         String? @unique(map: "email_2")
   emailVerified    Boolean @default(false)
   verificationCode String?
+  verificationExpiresAt DateTime?
   resetCode        String?
 }
 
