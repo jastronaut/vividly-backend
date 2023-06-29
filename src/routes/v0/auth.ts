@@ -354,12 +354,10 @@ router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
 		}
 
 		if (authUser.verificationCode !== code) {
-			return res
-				.status(400)
-				.json({
-					error: 'Invalid code',
-					errorCode: 'VERIFICATION_CODE_INVALID',
-				});
+			return res.status(400).json({
+				error: 'Invalid code',
+				errorCode: 'VERIFICATION_CODE_INVALID',
+			});
 		}
 
 		await prisma.authUser.update({

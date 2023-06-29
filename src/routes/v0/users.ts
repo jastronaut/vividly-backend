@@ -60,7 +60,7 @@ router.post('/username/change', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
 
 	if (!validateUsername(username)) {
-		return res.status(400).json({ success: false, error: 'Invalid username' });
+		return res.status(400).json({ success: false, error: 'USERNAME_INVALID' });
 	}
 
 	try {
@@ -71,7 +71,11 @@ router.post('/username/change', auth, async (req: Request, res: Response) => {
 		});
 
 		if (usernameUser) {
-			return res.status(400).json({ success: false, error: 'Username taken' });
+			return res.status(400).json({
+				success: false,
+				error: 'Username taken',
+				errorCode: 'USERNAME_TAKEN',
+			});
 		}
 
 		await prisma.user.update({
@@ -182,9 +186,12 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 				userId: user.id,
 			},
 			data: {
-				email,
+				newEmail: email,
 				emailVerified: false,
 				verificationCode: code,
+				verificationExpiresAt: new Date(
+					Date.now() + 1000 * 60 * 60 * 24 * 3
+				).toISOString(),
 			},
 		});
 
@@ -320,10 +327,12 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 				avatarSrc: userResult.avatarSrc,
 			},
 			isBlocked: !!userBlockedUsers,
-			friendship: {
-				...friendship,
-				newestPostId: newestPost?.id,
-			},
+			friendship: friendship
+				? {
+						...friendship,
+						newestPostId: newestPost?.id,
+				  }
+				: null,
 			friendRequest,
 		});
 	} catch (err) {
@@ -372,20 +381,30 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 	const { bio = null, name = null, avatarSrc = null } = req.body;
 
 	if (!bio && !name && !avatarSrc) {
-		return res.status(400).json({ success: false, error: 'No data provided' });
+		return res.status(400).json({
+			success: false,
+			error: 'No data provided',
+			errorCode: 'USER_INFO_INVALID',
+		});
 	}
 
 	try {
 		if (avatarSrc && !validateImgSrc(avatarSrc)) {
-			return res.status(400).json({ success: false, error: 'Invalid avatar' });
+			return res
+				.status(400)
+				.json({ success: false, error: 'USER_INFO_AVATAR_INVALID' });
 		}
 
 		if (name && !validateName(name)) {
-			return res.status(400).json({ success: false, error: 'Invalid name' });
+			return res
+				.status(400)
+				.json({ success: false, error: 'USER_INFO_NAME_INVALID' });
 		}
 
 		if (bio && !validateBio(bio)) {
-			return res.status(400).json({ success: false, error: 'Invalid bio' });
+			return res
+				.status(400)
+				.json({ success: false, error: 'USER_INFO_BIO_INVALID' });
 		}
 
 		await prisma.user.update({
@@ -413,9 +432,11 @@ router.post('/info/change', auth, async (req: Request, res: Response) => {
 		});
 	} catch (err) {
 		console.error(err);
-		return res
-			.status(500)
-			.json({ success: false, error: 'Internal server error' });
+		return res.status(500).json({
+			success: false,
+			error: 'Internal server error',
+			errorCode: 'USER_INFO_CHANGE_FAILED',
+		});
 	}
 });
 
