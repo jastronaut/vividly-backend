@@ -8,6 +8,8 @@ import { auth } from '../../middleware/auth';
 
 const router = express.Router();
 
+const PROFILE_FEED_LENGTH = 10;
+
 type CommentWithAuthor = Comment & {
 	author: { id: number; username: string; name: string; avatarSrc: string };
 };
@@ -78,7 +80,7 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 				where: {
 					authorId: userId,
 				},
-				take: 10,
+				take: PROFILE_FEED_LENGTH + 1,
 				skip: 1,
 				orderBy: {
 					createdTime: 'desc',
@@ -103,7 +105,7 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 				where: {
 					authorId: userId,
 				},
-				take: 10,
+				take: PROFILE_FEED_LENGTH + 1,
 				orderBy: {
 					createdTime: 'desc',
 				},
@@ -135,12 +137,13 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 		});
 
 		let newCursor: number | null = null;
+		// we need to check if there are more posts
 		const len = posts.length;
-		if (len > 0 && len === 10) {
-			newCursor = posts[len - 1].id;
+		if (len > PROFILE_FEED_LENGTH) {
+			newCursor = posts[len - 2].id;
 		}
 
-		const mappedPosts = posts.map(post =>
+		const mappedPosts = posts.slice(0, 10).map(post =>
 			createFeedResponseForPostandUserId(
 				post,
 				user.id,
