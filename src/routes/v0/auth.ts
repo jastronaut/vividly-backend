@@ -515,13 +515,25 @@ router.get('/info', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!authUser) {
-			return res.status(400).json({ msg: 'User does not exist' });
+			return res
+				.status(400)
+				.json({
+					success: false,
+					error: 'User does not exist',
+					errorCode: 'USER_DOES_NOT_EXIST',
+				});
 		}
 
-		res.status(200).json({ authUser });
+		res.status(200).json({ authUser, success: true });
 	} catch (error) {
 		console.log('error getting auth info:', error);
-		res.status(500).json({ msg: 'Error getting auth info' });
+		res
+			.status(500)
+			.json({
+				success: false,
+				error: 'Error getting auth info',
+				errorCode: 'ERROR_GETTING_AUTH_INFO',
+			});
 	}
 });
 
