@@ -440,58 +440,75 @@ router.post('/password/reset-request', async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST auth/password/reset/:userId/:code
+// @route POST auth/password/reset
 // @desc Reset user password
-// @access Public
-router.post(
-	'/password/reset/:userId/:code',
-	async (req: Request, res: Response) => {
-		const { code } = req.params;
-		const userId = parseInt(req.params.userId);
-		const { password } = req.body;
-		if (!password) {
-			return res.status(400).json({ msg: 'Please enter all fields' });
-		}
+// @access Private
+router.post('/password/reset', async (req: Request, res: Response) => {
+	const user = req.user;
+	const { password } = req.body;
 
-		if (!validatePassword(password)) {
-			return res.status(400).json({ msg: 'Invalid password' });
-		}
-
-		try {
-			const authUser = await prisma.authUser.findUnique({
-				where: {
-					userId,
-				},
-			});
-
-			if (!authUser) {
-				return res.status(400).json({ msg: 'User does not exist' });
-			}
-
-			if (authUser.resetCode !== code) {
-				return res.status(400).json({ msg: 'Invalid code' });
-			}
-
-			const salt = await bcrypt.genSalt(10);
-			const hash = await bcrypt.hash(password, salt);
-
-			await prisma.authUser.update({
-				where: {
-					userId,
-				},
-				data: {
-					password: hash,
-					resetCode: null,
-				},
-			});
-
-			res.status(200).json({ msg: 'Password reset successfully' });
-		} catch (error) {
-			console.log('error resetting password:', error);
-			res.status(500).json({ msg: 'Error resetting password' });
-		}
+	if (!user) {
+		return res.status(400).json({
+			success: false,
+			error: 'User does not exist',
+			errorCode: 'RESET_PASSWORD_USER_DOES_NOT_EXIST',
+		});
 	}
-);
+
+	if (!password) {
+		return res.status(400).json({
+			success: false,
+			error: 'Please enter all fields',
+			errorCode: 'RESET_PASSWORD_MISSING_FIELDS',
+		});
+	}
+
+	if (!validatePassword(password)) {
+		return res.status(400).json({
+			success: false,
+			error: 'Password must be at least 8 characters long',
+			errorCode: 'RESET_PASSWORD_INVALID_PASSWORD',
+		});
+	}
+
+	try {
+		const authUser = await prisma.authUser.findUnique({
+			where: {
+				userId: user.id,
+			},
+		});
+
+		if (!authUser) {
+			return res.status(400).json({
+				success: false,
+				error: 'User does not exist',
+				errorCode: 'RESET_PASSWORD_USER_DOES_NOT_EXIST',
+			});
+		}
+
+		const salt = await bcrypt.genSalt(10);
+		const hash = await bcrypt.hash(password, salt);
+
+		await prisma.authUser.update({
+			where: {
+				userId: user.id,
+			},
+			data: {
+				password: hash,
+				resetCode: null,
+			},
+		});
+
+		res.status(200).json({ msg: 'Password reset successfully', success: true });
+	} catch (error) {
+		console.log('error resetting password:', error);
+		res.status(500).json({
+			success: false,
+			error: 'Error resetting password',
+			errorCode: 'RESET_PASSWORD_ERROR',
+		});
+	}
+});
 
 // @route GET auth/info
 // @desc Get user auth info
@@ -515,25 +532,21 @@ router.get('/info', auth, async (req: Request, res: Response) => {
 		});
 
 		if (!authUser) {
-			return res
-				.status(400)
-				.json({
-					success: false,
-					error: 'User does not exist',
-					errorCode: 'USER_DOES_NOT_EXIST',
-				});
+			return res.status(400).json({
+				success: false,
+				error: 'User does not exist',
+				errorCode: 'USER_DOES_NOT_EXIST',
+			});
 		}
 
 		res.status(200).json({ authUser, success: true });
 	} catch (error) {
 		console.log('error getting auth info:', error);
-		res
-			.status(500)
-			.json({
-				success: false,
-				error: 'Error getting auth info',
-				errorCode: 'ERROR_GETTING_AUTH_INFO',
-			});
+		res.status(500).json({
+			success: false,
+			error: 'Error getting auth info',
+			errorCode: 'ERROR_GETTING_AUTH_INFO',
+		});
 	}
 });
 
