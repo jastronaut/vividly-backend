@@ -8,7 +8,7 @@ import { auth } from '../../middleware/auth';
 
 const router = express.Router();
 
-const PROFILE_FEED_LENGTH = 10;
+const PROFILE_FEED_LENGTH = 25;
 
 type CommentWithAuthor = Comment & {
 	author: { id: number; username: string; name: string; avatarSrc: string };
@@ -143,7 +143,7 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 			newCursor = posts[len - 2].id;
 		}
 
-		const mappedPosts = posts.slice(0, 10).map(post =>
+		const mappedPosts = posts.slice(0, PROFILE_FEED_LENGTH - 1).map(post =>
 			createFeedResponseForPostandUserId(
 				post,
 				user.id,
@@ -166,7 +166,6 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 router.post('/uid/:userId/read', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
 	const userId = parseInt(req.params.userId);
-
 	try {
 		const otherUser = await prisma.user.findUnique({
 			where: {
