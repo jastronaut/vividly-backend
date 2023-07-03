@@ -215,13 +215,13 @@ router.post('/register', async (req: Request, res: Response) => {
 // @desc Change a User's password
 // @access Private
 router.post('/password/change', auth, async (req: Request, res: Response) => {
-	const { password, newPassword } = req.body;
+	const { password } = req.body;
 	const user = req.user as RequestUser;
-	if (!password || !newPassword) {
+	if (!password) {
 		return res.status(400).json({ msg: 'Please enter all fields' });
 	}
 
-	if (!validatePassword(newPassword)) {
+	if (!validatePassword(password)) {
 		return res.status(400).json({ msg: 'Invalid password' });
 	}
 
@@ -232,7 +232,7 @@ router.post('/password/change', auth, async (req: Request, res: Response) => {
 
 		// hash password
 		const salt = await bcrypt.genSalt(10);
-		const hash = await bcrypt.hash(newPassword, salt);
+		const hash = await bcrypt.hash(password, salt);
 
 		const updatedUser = await prisma.user.update({
 			where: {
