@@ -1,18 +1,15 @@
 {
-  "name": "rest-express",
-  "version": "1.0.0",
+  "name": "vividly-backend",
+  "version": "0.1.0-alpha.1",
   "license": "MIT",
   "scripts": {
     "migrate": "prisma migrate dev",
     "generate": "prisma generate",
     "test": "jest --config jest.config.js",
     "build": "prisma generate && tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "compile": "tsc",
     "dev": "ts-node ./src/index.ts"
-  },
-  "engines": {
-    "node": "18.12.1"
   },
   "dependencies": {
     "@prisma/client": "^4.16.1",
