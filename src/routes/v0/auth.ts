@@ -514,7 +514,7 @@ router.post('/password/reset', async (req: Request, res: Response) => {
 // @desc Get user auth info
 // @access Private
 router.get('/info', auth, async (req: Request, res: Response) => {
-	const user = req.user;
+	const user = req.user as RequestUser;
 
 	if (!user) {
 		return res.status(400).json({ msg: 'User does not exist' });
@@ -539,10 +539,10 @@ router.get('/info', auth, async (req: Request, res: Response) => {
 			});
 		}
 
-		res.status(200).json({ authUser, success: true });
+		return res.status(200).json({ authUser, success: true });
 	} catch (error) {
 		console.log('error getting auth info:', error);
-		res.status(500).json({
+		return res.status(500).json({
 			success: false,
 			error: 'Error getting auth info',
 			errorCode: 'ERROR_GETTING_AUTH_INFO',
