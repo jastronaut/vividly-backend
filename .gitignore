@@ -41,3 +41,9 @@ jspm_packages
 config
 
 .DS_Store
+
+sendgrid.env
+
+dist
+
+.env*
