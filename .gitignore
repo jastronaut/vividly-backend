@@ -44,6 +44,4 @@ config
 
 sendgrid.env
 
-dist
-
 .env*
