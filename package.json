@@ -11,6 +11,9 @@
     "compile": "tsc",
     "dev": "ts-node ./src/index.ts"
   },
+  "engines": {
+    "node": "18.12.1"
+  },
   "dependencies": {
     "@prisma/client": "^4.16.1",
     "@sendgrid/mail": "^7.7.0",
