@@ -1,4 +1,4 @@
-import { Comment, Post } from '@prisma/client';
+import { Post } from '@prisma/client';
 import { Request, Response } from 'express';
 import express from 'express';
 
@@ -152,6 +152,47 @@ async function createCommentReplyResponse(
 }
 
 */
+
+async function findMentionsAndNotify(
+	content: any, // JSON
+	userId: number,
+	postId: number,
+	postBlock: string
+) {
+	const mentions = content
+		.filter((c: any) => c.type === 'text' && c.text.match(/@(\w+)/g))
+		.map((c: any) => c.text.match(/@(\w+)/g)[0]);
+	// add all mentions to a list
+	const mentionsList =
+		mentions?.map((mention: string) => mention.slice(1)) || [];
+	// add notification for each mention
+	await Promise.all(
+		mentionsList.map(async (mention: string) => {
+			const mentionedUser = await prisma.user.findUnique({
+				where: {
+					username: mention,
+				},
+			});
+
+			if (mentionedUser) {
+				await prisma.notification.create({
+					data: {
+						userId: mentionedUser.id,
+						createdTime: new Date(),
+						senderId: userId,
+						body: {
+							type: NotificationType.POST_MENTION,
+							post: {
+								id: postId,
+								block: content[0],
+							},
+						},
+					},
+				});
+			}
+		})
+	);
+}
 
 // @route GET v0/posts
 // @desc Get Post by ID
@@ -334,6 +375,13 @@ router.post('/', auth, async (req: Request, res: Response) => {
 				updatedTime: new Date(),
 			},
 		});
+
+		await findMentionsAndNotify(
+			content,
+			user.id,
+			post.id,
+			`${post.content[0]}`
+		);
 
 		const postResponse = await createPostResponseForUserId(user.id, post);
 
