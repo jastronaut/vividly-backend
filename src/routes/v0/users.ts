@@ -157,68 +157,6 @@ router.post('/name/change', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route POST /v0/users/email/change
-// @desc Change email and send verification email
-// @access Private
-router.post('/email/change', auth, async (req: Request, res: Response) => {
-	const { email } = req.body;
-	const user = req.user as RequestUser;
-
-	if (!validateEmail(email)) {
-		return res.status(400).json({ error: 'Invalid email' });
-	}
-
-	try {
-		const emailUser = await prisma.authUser.findUnique({
-			where: {
-				email,
-			},
-		});
-
-		if (emailUser) {
-			return res.status(400).json({ success: false, error: 'Email taken' });
-		}
-
-		const code = generateVerificationCode();
-
-		await prisma.authUser.update({
-			where: {
-				userId: user.id,
-			},
-			data: {
-				newEmail: email,
-				emailVerified: false,
-				verificationCode: code,
-				verificationExpiresAt: new Date(
-					Date.now() + 1000 * 60 * 60 * 24 * 3
-				).toISOString(),
-			},
-		});
-
-		const message = {
-			from: { email: 'notify@vividly.love', name: 'Vividly' },
-			to: { email: email, name: user.name },
-			subject: 'Verify your email',
-			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}/${code}">here</a> to verify your email</p>`,
-			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
-			dynamicTemplateData: {
-				username: '@' + user.username,
-				first_name: '@' + user.username,
-				verify_url: `http://localhost:3000/verify/${user.id}/${code}`,
-			},
-		};
-
-		await SendGrid.send(message);
-
-		return res.status(200).json({ success: true });
-	} catch (err) {
-		console.error(err);
-		return res
-			.status(500)
-			.json({ success: false, error: 'Internal server error' });
-	}
-});
-
 // @route GET /v0/users/:id
 // @desc Get user by id
 // @access Public

@@ -16,6 +16,8 @@ import {
 	validateUsername,
 	getJwt,
 	generateVerificationCode,
+	createVerificationExpiryTime,
+	createVerifyEmailMessage,
 } from '../../utils';
 import { RequestUser } from '../../types/types';
 
@@ -273,66 +275,84 @@ router.post('/password/change', auth, async (req: Request, res: Response) => {
 	}
 });
 
-// @route GET auth/verify
+// @route POST auth/verify-email/resend
 // @desc Send verification email to user
 // @access Private
-router.get('/verify', auth, async (req: Request, res: Response) => {
-	const user = req.user as RequestUser;
-	if (!user) {
-		return res.status(400).json({ msg: 'User does not exist' });
-	}
-
-	try {
-		const authUser = await prisma.authUser.findUnique({
-			where: {
-				userId: user.id,
-			},
-			include: {
-				user: true,
-			},
-		});
-
-		if (!authUser) {
+router.post(
+	'/verify-email/resend',
+	auth,
+	async (req: Request, res: Response) => {
+		const user = req.user as RequestUser;
+		if (!user) {
 			return res.status(400).json({ msg: 'User does not exist' });
 		}
 
-		if (authUser.emailVerified) {
-			return res.status(400).json({ msg: 'Email already verified' });
+		try {
+			const authUser = await prisma.authUser.findUnique({
+				where: {
+					userId: user.id,
+				},
+				include: {
+					user: true,
+				},
+			});
+
+			if (!authUser) {
+				return res.status(400).json({ msg: 'User does not exist' });
+			}
+
+			const verificationCode = generateVerificationCode();
+			const expirationTime = createVerificationExpiryTime();
+
+			if (authUser.emailVerified) {
+				return res.status(400).json({ msg: 'Email already verified' });
+			}
+
+			await prisma.authUser.update({
+				where: {
+					userId: user.id,
+				},
+				data: {
+					verificationCode,
+					verificationExpiresAt: expirationTime,
+					emailVerified: false,
+				},
+			});
+
+			const message = createVerifyEmailMessage(
+				user.username,
+				user.name,
+				authUser.email,
+				verificationCode
+			);
+
+			await SendGrid.send(message);
+
+			res.status(200).json({ msg: 'Email sent successfully' });
+		} catch (error) {
+			console.log('error sending email:', error);
+			res.status(500).json({ msg: 'Error sending email' });
 		}
-
-		const message = {
-			from: { email: 'notify@vividly.love', name: 'Vividly' },
-			to: { email: authUser.email, name: authUser.user.name },
-			subject: 'Verify your email',
-			html: `<p>Click <a href="http://localhost:3000/verify/${user.id}/${authUser.verificationCode}">here</a> to verify your email</p>`,
-			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
-			dynamicTemplateData: {
-				username: '@' + authUser.user.username,
-				first_name: '@' + authUser.user.username,
-				verify_url: `http://localhost:3000/verify/${user.id}/${authUser.verificationCode}`,
-			},
-		};
-
-		await SendGrid.send(message);
-
-		res.status(200).json({ msg: 'Email sent successfully' });
-	} catch (error) {
-		console.log('error sending email:', error);
-		res.status(500).json({ msg: 'Error sending email' });
 	}
-});
+);
 
-// @route GET auth/verify/:userId/:code
+// @route GET auth/verify-email/code/:code
 // @desc Verify user via code
 // @access Public
-router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
+router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
 	const { code } = req.params;
-	const userId = parseInt(req.params.userId);
 
 	try {
-		const authUser = await prisma.authUser.findUnique({
+		if (!code) {
+			return res.status(400).json({
+				error: 'Please enter all fields',
+				errorCode: 'VERIFICATION_MISSING_FIELDS',
+			});
+		}
+
+		const authUser = await prisma.authUser.findFirst({
 			where: {
-				userId: userId,
+				verificationCode: code,
 			},
 			include: {
 				user: true,
@@ -353,24 +373,33 @@ router.get('/verify/:userId/:code', async (req: Request, res: Response) => {
 			});
 		}
 
-		if (authUser.verificationCode !== code) {
+		const currentTime = new Date().getTime();
+
+		const isTimeValid =
+			authUser.verificationExpiresAt &&
+			currentTime < authUser.verificationExpiresAt.getTime();
+
+		if (!isTimeValid) {
 			return res.status(400).json({
-				error: 'Invalid code',
-				errorCode: 'VERIFICATION_CODE_INVALID',
+				error: 'Verification code expired',
+				errorCode: 'VERIFICATION_CODE_EXPIRED',
 			});
 		}
 
 		await prisma.authUser.update({
 			where: {
-				userId,
+				id: authUser.id,
 			},
 			data: {
 				emailVerified: true,
 				verificationCode: null,
+				email: authUser.newEmail ?? authUser.email,
+				newEmail: null,
+				verificationExpiresAt: null,
 			},
 		});
 
-		res.status(200).json({ msg: 'Email verified successfully', success: true });
+		return res.redirect(`${process.env.CLIENT_URL}/verify-email`);
 	} catch (error) {
 		console.log('error verifying email:', error);
 		res.status(500).json({
@@ -547,6 +576,60 @@ router.get('/info', auth, async (req: Request, res: Response) => {
 			error: 'Error getting auth info',
 			errorCode: 'ERROR_GETTING_AUTH_INFO',
 		});
+	}
+});
+
+// @route POST /v0/users/email/change
+// @desc Change email and send verification email
+// @access Private
+router.post('/email/change', auth, async (req: Request, res: Response) => {
+	const { email } = req.body;
+	const user = req.user as RequestUser;
+
+	if (!validateEmail(email)) {
+		return res.status(400).json({ error: 'Invalid email' });
+	}
+
+	try {
+		const emailUser = await prisma.authUser.findUnique({
+			where: {
+				email,
+			},
+		});
+
+		if (emailUser) {
+			return res.status(400).json({ success: false, error: 'Email taken' });
+		}
+
+		const code = generateVerificationCode();
+
+		await prisma.authUser.update({
+			where: {
+				userId: user.id,
+			},
+			data: {
+				newEmail: email,
+				emailVerified: false,
+				verificationCode: code,
+				verificationExpiresAt: createVerificationExpiryTime(),
+			},
+		});
+
+		const message = createVerifyEmailMessage(
+			user.username,
+			user.name,
+			email,
+			code
+		);
+
+		await SendGrid.send(message);
+
+		return res.status(200).json({ success: true });
+	} catch (err) {
+		console.error(err);
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
 	}
 });
 

@@ -71,3 +71,29 @@ export function validateImgSrc(imgSrc: string) {
 export function validateBio(bio: string) {
 	return bio.length <= 150;
 }
+
+export function createVerificationExpiryTime() {
+	return new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString();
+}
+
+export function createVerifyEmailMessage(
+	username: string,
+	name: string,
+	email: string,
+	code: string
+) {
+	const message = {
+		from: { email: 'notify@vividly.love', name: 'Vividly' },
+		to: { email: email, name: name },
+		subject: 'Verify your email',
+		html: `<p>Click <a href="http://localhost:3000/verify/${code}">here</a> to verify your email</p>`,
+		templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
+		dynamicTemplateData: {
+			username: '@' + username,
+			first_name: '@' + username,
+			verify_url: `http://localhost:3000/verify/${code}`,
+		},
+	};
+
+	return message;
+}
