@@ -6,7 +6,10 @@ import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth, verifyEmail } from '../../middleware/auth';
 
+type FriendsQueryArgs = Parameters<typeof prisma.friendship.findMany>[0];
+
 const MAX_FRIENDS = 500;
+const FRIENDS_PER_PAGE = 50;
 
 const router = express.Router();
 
@@ -14,10 +17,12 @@ const router = express.Router();
 // @desc   Get all friends
 // @access Private
 router.get('/', auth, async (req: Request, res: Response) => {
+	const cursor = parseInt(req.query.cursor as string);
+
 	try {
 		const user = req.user as RequestUser;
 
-		const friends = await prisma.friendship.findMany({
+		const query: FriendsQueryArgs = {
 			where: {
 				userId: user.id,
 			},
@@ -33,12 +38,36 @@ router.get('/', auth, async (req: Request, res: Response) => {
 						avatarSrc: true,
 						bio: true,
 						name: true,
+						posts: {
+							take: 1,
+							orderBy: {
+								createdTime: 'desc',
+							},
+						},
 					},
 				},
 			},
-		});
+			take: FRIENDS_PER_PAGE + 1,
+		};
 
-		res.status(200).json({ friends: friends, success: true });
+		if (cursor) {
+			query.cursor = {
+				id: cursor,
+			};
+			query.skip = 1;
+		}
+
+		const friends = await prisma.friendship.findMany(query);
+
+		const newCursor = friends[friends.length - 1]?.id;
+		const hasMore = friends.length > FRIENDS_PER_PAGE;
+		if (hasMore) {
+			friends.pop();
+		}
+
+		return res
+			.status(200)
+			.json({ success: true, data: friends, cursor: newCursor });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ success: false, error: 'Server error' });
