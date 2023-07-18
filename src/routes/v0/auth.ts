@@ -29,9 +29,11 @@ const router = express.Router();
 router.post('/login', async (req: Request, res: Response) => {
 	const { username, password } = req.body;
 	if (!username || !password) {
-		return res
-			.status(400)
-			.json({ success: false, error: 'Missing credentials' });
+		return res.status(400).json({
+			success: false,
+			error: 'Missing credentials',
+			errorCode: 'LOGIN_MISSING_CREDENTIALS',
+		});
 	}
 
 	try {
@@ -46,25 +48,32 @@ router.post('/login', async (req: Request, res: Response) => {
 		});
 
 		if (!user || !user.authUser) {
-			return res
-				.status(400)
-				.json({ success: false, error: 'User does not exist' });
+			return res.status(400).json({
+				success: false,
+				error: 'User does not exist',
+				errorCode: 'LOGIN_USER_DOES_NOT_EXIST',
+			});
 		}
 
 		const hash = user.authUser.password;
 		const match = await bcrypt.compare(password, hash);
 		if (!match) {
-			return res
-				.status(400)
-				.json({ success: false, error: 'Invalid credentials' });
+			return res.status(400).json({
+				success: false,
+				error: 'Invalid credentials',
+
+				errorCode: 'LOGIN_INVALID_CREDENTIALS',
+			});
 		}
 
 		const token = getJwt(user.id, hash);
 
 		if (!token) {
-			return res
-				.status(400)
-				.json({ success: false, error: 'Invalid credentials' });
+			return res.status(400).json({
+				success: false,
+				error: 'Invalid credentials',
+				errorCode: 'LOGIN_INVALID_CREDENTIALS',
+			});
 		}
 
 		res.status(200).json({
@@ -79,10 +88,11 @@ router.post('/login', async (req: Request, res: Response) => {
 			},
 		});
 	} catch (error) {
-		console.log('error logging in:', error);
-		res
-			.status(500)
-			.json({ succcess: false, error: 'unable to login at this time' });
+		res.status(500).json({
+			succcess: false,
+			error: 'unable to login at this time',
+			errorCode: 'LOGIN_ERROR',
+		});
 	}
 });
 
