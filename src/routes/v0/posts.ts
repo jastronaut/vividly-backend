@@ -157,14 +157,27 @@ async function findMentionsAndNotify(
 	content: any, // JSON
 	userId: number,
 	postId: number,
-	postBlock: string
+	username: string
 ) {
-	const mentions = content
+	const mentions = new Set();
+	content
 		.filter((c: any) => c.type === 'text' && c.text.match(/@(\w+)/g))
 		.map((c: any) => c.text.match(/@(\w+)/g)[0]);
+
+	for (const block of content) {
+		if (block.type === 'text') {
+			const matches = block.text.match(/@(\w+)/g);
+			for (const match of matches) {
+				const name = match.slice(1);
+				if (name !== username) {
+					mentions.add(name);
+				}
+			}
+		}
+	}
+
 	// add all mentions to a list
-	const mentionsList =
-		mentions?.map((mention: string) => mention.slice(1)) || [];
+	const mentionsList: string[] = Array.from(mentions) as string[];
 	// add notification for each mention
 	await Promise.all(
 		mentionsList.map(async (mention: string) => {
@@ -376,12 +389,7 @@ router.post('/', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await findMentionsAndNotify(
-			content,
-			user.id,
-			post.id,
-			`${post.content[0]}`
-		);
+		await findMentionsAndNotify(content, user.id, post.id, user.username);
 
 		const postResponse = await createPostResponseForUserId(user.id, post);
 
