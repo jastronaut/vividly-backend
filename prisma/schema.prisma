@@ -85,7 +85,7 @@ model UserSettings {
 
 model User {
   id                    Int             @id @default(autoincrement())
-  bio                   String          @default("")
+  bio                   String?         @default("")
   friends               Friendship[]    @relation("FriendedUser")
   friendOf              Friendship[]    @relation("FriendUser")
   isDeactivated         Boolean         @default(false)
@@ -119,4 +119,16 @@ model Notification {
   isUnread    Boolean  @default(true)
   senderId    Int
   sender      User     @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+model Report {
+  id             Int      @id @default(autoincrement())
+  createdTime    DateTime
+  itemId         Int
+  itemType       String
+  reporterId     Int
+  comment        String?
+  reason         String
+  resolved       Boolean  @default(false)
+  resolvedReason String?
 }

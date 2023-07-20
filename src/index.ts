@@ -9,6 +9,7 @@ import BlockedUsersHandlers from './routes/v0/blocked_users';
 import UsersHandlers from './routes/v0/users';
 import WaitlistHandlers from './routes/v0/waitlist';
 import NotificationHandlers from './routes/v0/notifications';
+import ReportHandlers from './routes/v0/reports';
 
 const app = express();
 app.use(express.json());
@@ -23,6 +24,7 @@ app.use('/v0/blocked_users', BlockedUsersHandlers);
 app.use('/v0/users', UsersHandlers);
 app.use('/v0/waitlist', WaitlistHandlers);
 app.use('/v0/notifications', NotificationHandlers);
+app.use('/v0/reports', ReportHandlers);
 
 const port = process.env.PORT || 1337;
 
