@@ -37,7 +37,7 @@ async function canUserViewPost(user: RequestUser, post: Post) {
 	}
 
 	// get users blocked by request user
-	const blockedUsers = await prisma.blockedUser.findMany({
+	const blockedUsers = await prisma.block.findMany({
 		select: {
 			blockedUserId: true,
 		},
@@ -157,16 +157,19 @@ async function findMentionsAndNotify(
 	content: any, // JSON
 	userId: number,
 	postId: number,
-	username: string
+	username: string,
+	blockedUserIds: {
+		blockedUserId: number;
+	}[]
 ) {
 	const mentions = new Set();
-	content
-		.filter((c: any) => c.type === 'text' && c.text.match(/@(\w+)/g))
-		.map((c: any) => c.text.match(/@(\w+)/g)[0]);
 
 	for (const block of content) {
 		if (block.type === 'text') {
 			const matches = block.text.match(/@(\w+)/g);
+			if (!matches) {
+				continue;
+			}
 			for (const match of matches) {
 				const name = match.slice(1);
 				if (name !== username) {
@@ -188,6 +191,13 @@ async function findMentionsAndNotify(
 			});
 
 			if (mentionedUser) {
+				const findBlocked = blockedUserIds.find(
+					user => user.blockedUserId === mentionedUser.id
+				);
+				if (findBlocked) {
+					return;
+				}
+
 				await prisma.notification.create({
 					data: {
 						userId: mentionedUser.id,
@@ -389,7 +399,13 @@ router.post('/', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await findMentionsAndNotify(content, user.id, post.id, user.username);
+		await findMentionsAndNotify(
+			content,
+			user.id,
+			post.id,
+			user.username,
+			user.blockedUsers
+		);
 
 		const postResponse = await createPostResponseForUserId(user.id, post);
 

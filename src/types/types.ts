@@ -1,9 +1,10 @@
-import { User, Friendship } from '@prisma/client';
+import { User, Friendship, Block } from '@prisma/client';
 export type RequestUser = Pick<
 	User,
 	'id' | 'name' | 'username' | 'bio' | 'avatarSrc'
 > & {
 	friends: Friendship[];
+	blockedUsers: Block[];
 };
 
 export enum NotificationType {

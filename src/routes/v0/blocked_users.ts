@@ -14,7 +14,7 @@ router.get('/', auth, async (req: Request, res: Response) => {
 	try {
 		const user = req.user as RequestUser;
 
-		const blockedUsers = await prisma.blockedUser.findMany({
+		const blockedUsers = await prisma.block.findMany({
 			where: {
 				blockerId: user.id,
 			},
@@ -46,7 +46,7 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 		}
 
 		// check if user is already blocked
-		const isUserBlocked = await prisma.blockedUser.findFirst({
+		const isUserBlocked = await prisma.block.findFirst({
 			where: {
 				blockedUserId: user.id,
 				blockerId: userid,
@@ -81,7 +81,7 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await prisma.blockedUser.create({
+		await prisma.block.create({
 			data: {
 				blockedUser: {
 					connect: {
@@ -143,10 +143,10 @@ router.post('/unblock/:userid', auth, async (req: Request, res: Response) => {
 		}
 
 		// check if user is already blocked
-		const isUserBlocked = await prisma.blockedUser.findFirst({
+		const isUserBlocked = await prisma.block.findFirst({
 			where: {
-				blockedUserId: user.id,
-				blockerId: userid,
+				blockedUserId: userid,
+				blockerId: user.id,
 			},
 		});
 
@@ -154,7 +154,7 @@ router.post('/unblock/:userid', auth, async (req: Request, res: Response) => {
 			return res.status(403).json({ error: 'User is not blocked' });
 		}
 
-		const blockedUser = await prisma.blockedUser.delete({
+		const blockedUser = await prisma.block.delete({
 			where: {
 				id: isUserBlocked.id,
 			},

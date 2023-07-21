@@ -109,7 +109,7 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		}
 
 		// check if user is blocked by other user
-		const isUser1BlockedByUser2 = await prisma.blockedUser.findFirst({
+		const isUser1BlockedByUser2 = await prisma.block.findFirst({
 			where: {
 				blockedUserId: user.id,
 				blockerId: otherUser.id,
@@ -122,7 +122,7 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 				.json({ success: true, error: 'Cannot send friend request to user' });
 		}
 
-		const ifUser2BlockedUser1 = await prisma.blockedUser.findFirst({
+		const ifUser2BlockedUser1 = await prisma.block.findFirst({
 			where: {
 				blockedUserId: otherUser.id,
 				blockerId: user.id,

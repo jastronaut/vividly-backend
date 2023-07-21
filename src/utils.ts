@@ -32,7 +32,7 @@ export function validateName(name: string) {
 
 // from user ids, check if user1 is blocked by user2
 export function isUserBlockedByUserByIds(user1Id: number, user2Id: number) {
-	const user1BlockedByUser2 = prisma.blockedUser.findFirst({
+	const user1BlockedByUser2 = prisma.block.findFirst({
 		where: {
 			blockedUserId: user1Id,
 			blockerId: user2Id,
@@ -96,4 +96,13 @@ export function createVerifyEmailMessage(
 	};
 
 	return message;
+}
+
+export function getMentionedUsernames(content: string) {
+	const matches = content.match(/@\w+/g);
+	if (!matches) {
+		return new Set();
+	}
+	const mentionsUsernames = matches.map(mention => mention.slice(1));
+	return new Set(mentionsUsernames);
 }

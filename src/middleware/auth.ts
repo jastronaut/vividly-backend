@@ -44,6 +44,7 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 					username: true,
 					bio: true,
 					avatarSrc: true,
+					blocked: true,
 				},
 			})
 			.then(user => {
@@ -59,6 +60,7 @@ export function auth(req: Request, res: Response, next: NextFunction) {
 					bio: user.bio,
 					friends: user.friends,
 					avatarSrc: user.avatarSrc,
+					blockedUsers: user.blocked ?? [],
 				};
 				req.user = reqUser;
 				next();

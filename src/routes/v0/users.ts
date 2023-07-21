@@ -176,7 +176,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		}
 
 		// get users blocked by result user
-		const userResultBlockedUsers = await prisma.blockedUser.findFirst({
+		const userResultBlockedUsers = await prisma.block.findFirst({
 			select: {
 				blockedUserId: true,
 			},
@@ -191,7 +191,7 @@ router.get('/:id', auth, async (req: Request, res: Response) => {
 		}
 
 		// get users blocked by requesting user
-		const userBlockedUsers = await prisma.blockedUser.findFirst({
+		const userBlockedUsers = await prisma.block.findFirst({
 			select: {
 				blockedUserId: true,
 			},

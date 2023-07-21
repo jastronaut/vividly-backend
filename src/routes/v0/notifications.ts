@@ -17,14 +17,7 @@ router.get('/', auth, async (req: Request, res: Response) => {
 		const user = req.user as RequestUser;
 		const cursor = parseInt(req.query.cursor as string);
 
-		const blockedUsers = await prisma.blockedUser.findMany({
-			select: {
-				blockedUserId: true,
-			},
-			where: {
-				blockerId: user.id,
-			},
-		});
+		const blockedUsers = user.blockedUsers;
 
 		let notifications = [];
 

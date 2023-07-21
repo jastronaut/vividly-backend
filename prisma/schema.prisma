@@ -13,19 +13,19 @@ model Comment {
   id          Int      @id @default(autoincrement())
   content     String
   createdTime DateTime
-  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   authorId    Int
   postId      Int
-  post        Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post        Post     @relation("PostComments", fields: [postId], references: [id], onDelete: Cascade)
 }
 
 model FriendRequest {
   id          Int      @id @default(autoincrement())
   createdTime DateTime
-  fromUser    User     @relation("friend requester", fields: [fromUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  toUser      User     @relation("friend request reciever", fields: [toUserId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   fromUserId  Int
   toUserId    Int
+  fromUser    User     @relation("friend requester", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser      User     @relation("friend request reciever", fields: [toUserId], references: [id], onDelete: Cascade)
 }
 
 model Friendship {
@@ -35,36 +35,35 @@ model Friendship {
   lastReadPostTime DateTime
   lastReadPostId   Int?
   friendId         Int
-  friend           User     @relation("FriendedUser", fields: [friendId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   userId           Int
-  user             User     @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  friend           User     @relation("FriendedUser", fields: [friendId], references: [id], onDelete: Cascade)
+  user             User     @relation("FriendUser", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Post {
   id               Int       @id @default(autoincrement())
   authorId         Int
-  author           User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  comments         Comment[] @relation("PostComments")
   content          Json[]
   createdTime      DateTime
   isUpdated        Boolean   @default(false)
   likedByIds       Int[]     @default([])
   updatedTime      DateTime
   commentsDisabled Boolean   @default(false)
+  comments         Comment[] @relation("PostComments")
+  author           User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }
 
-model BlockedUser {
-  id            Int           @id @default(autoincrement())
+model Block {
+  id            Int  @id @default(autoincrement())
   blockedUserId Int
-  blockedUser   UserSettings? @relation("blocked user", fields: [blockedUserId], references: [id])
   blockerId     Int
-  blocker       UserSettings? @relation("blocker", fields: [blockerId], references: [id])
+  blockedUser   User @relation("BlockedUser", fields: [blockedUserId], references: [id])
+  blocker       User @relation("BlockUsers", fields: [blockerId], references: [id])
 }
 
 model AuthUser {
   id                    Int       @id @default(autoincrement())
   userId                Int       @unique
-  user                  User      @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   password              String
   email                 String    @unique(map: "email_1")
   newEmail              String?   @unique(map: "email_2")
@@ -72,36 +71,36 @@ model AuthUser {
   verificationCode      String?
   verificationExpiresAt DateTime?
   resetCode             String?
+  user                  User      @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserSettings {
-  id           Int           @id @default(autoincrement())
-  userId       Int           @unique
-  user         User          @relation("UserSettings", fields: [userId], references: [id])
-  blockedWords String[]      @default([])
-  blockedUsers BlockedUser[] @relation("blocker")
-  blockedBy    BlockedUser[] @relation("blocked user")
+  id           Int      @id @default(autoincrement())
+  userId       Int      @unique
+  blockedWords String[] @default([])
+  user         User     @relation("UserSettings", fields: [userId], references: [id])
 }
 
 model User {
   id                    Int             @id @default(autoincrement())
   bio                   String?         @default("")
-  friends               Friendship[]    @relation("FriendedUser")
-  friendOf              Friendship[]    @relation("FriendUser")
   isDeactivated         Boolean         @default(false)
   name                  String
   avatarSrc             String          @default("https://i.ibb.co/CnxM4Hj/grid-0-2.jpg")
   url                   String?
   username              String          @unique(map: "username_1")
-  posts                 Post[]          @relation("PostAuthor")
+  authUser              AuthUser?       @relation("AuthUser")
+  blocked               Block[]         @relation("BlockedUser")
+  blockedBy             Block[]         @relation("BlockUsers")
+  comments              Comment[]
   friendRequests        FriendRequest[] @relation("friend requester")
   friendRequestReciever FriendRequest[] @relation("friend request reciever")
-
-  authUser          AuthUser?      @relation("AuthUser")
-  userSettings      UserSettings?  @relation("UserSettings")
-  comments          Comment[]
-  notifications     Notification[]
-  sentNotifications Notification[] @relation("NotificationSender")
+  friends               Friendship[]    @relation("FriendedUser")
+  friendOf              Friendship[]    @relation("FriendUser")
+  sentNotifications     Notification[]  @relation("NotificationSender")
+  notifications         Notification[]
+  posts                 Post[]          @relation("PostAuthor")
+  userSettings          UserSettings?   @relation("UserSettings")
 }
 
 model Waitlist {
@@ -113,12 +112,12 @@ model Waitlist {
 model Notification {
   id          Int      @id @default(autoincrement())
   userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   createdTime DateTime
   body        Json
   isUnread    Boolean  @default(true)
   senderId    Int
-  sender      User     @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sender      User     @relation("NotificationSender", fields: [senderId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Report {
