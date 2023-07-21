@@ -11,6 +11,8 @@ import WaitlistHandlers from './routes/v0/waitlist';
 import NotificationHandlers from './routes/v0/notifications';
 import ReportHandlers from './routes/v0/reports';
 
+import './cronJobs';
+
 const app = express();
 app.use(express.json());
 // questionable
