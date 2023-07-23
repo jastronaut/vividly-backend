@@ -18,6 +18,16 @@ router.get('/', auth, async (req: Request, res: Response) => {
 			where: {
 				blockerId: user.id,
 			},
+			select: {
+				blockedUser: {
+					select: {
+						id: true,
+						username: true,
+						avatarSrc: true,
+						name: true,
+					},
+				},
+			},
 		});
 
 		res.status(200).json(blockedUsers);
@@ -154,13 +164,13 @@ router.post('/unblock/:userid', auth, async (req: Request, res: Response) => {
 			return res.status(403).json({ error: 'User is not blocked' });
 		}
 
-		const blockedUser = await prisma.block.delete({
+		await prisma.block.delete({
 			where: {
 				id: isUserBlocked.id,
 			},
 		});
 
-		res.status(200).json(blockedUser);
+		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ error: 'Server error' });
