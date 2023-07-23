@@ -5,6 +5,7 @@ import express from 'express';
 import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth } from '../../middleware/auth';
+import { sortFeedFriendships } from '../../sortFeedFriendships';
 
 const router = express.Router();
 
@@ -127,14 +128,7 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 		}
 
 		// get users blocked by request user
-		const blockedUsers = await prisma.blockedUser.findMany({
-			select: {
-				blockedUserId: true,
-			},
-			where: {
-				blockerId: user.id,
-			},
-		});
+		const blockedUsers = user.blockedUsers;
 
 		let newCursor: number | null = null;
 		// we need to check if there are more posts
@@ -251,9 +245,19 @@ router.get('/friends', auth, async (req: Request, res: Response) => {
 					},
 				},
 			},
+			orderBy: [
+				{
+					lastReadPostTime: 'desc',
+				},
+				{
+					isFavorite: 'desc',
+				},
+			],
 		});
 
-		res.status(200).json({ success: true, data: friendships });
+		res
+			.status(200)
+			.json({ success: true, data: sortFeedFriendships(friendships) });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ success: false, error: 'Server error' });
