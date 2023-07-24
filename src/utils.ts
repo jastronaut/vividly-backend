@@ -19,10 +19,10 @@ const validEmails = ['peached.app+120@gmail.com', 'peached.app+124@gmail.com'];
 
 // validate email
 export function validateEmail(email: string) {
-	if (email.startsWith('peached.app+') && email.endsWith('@gmail.com')) {
-		return true;
-	}
-	return false;
+	const isTestAccount =
+		email.startsWith('peached.app+') && email.endsWith('@gmail.com');
+	const isAdminAccount = email.endsWith('@vividly.love');
+	return isTestAccount || isAdminAccount;
 }
 
 export function validateName(name: string) {
