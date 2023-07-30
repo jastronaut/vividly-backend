@@ -255,9 +255,21 @@ router.get('/friends', auth, async (req: Request, res: Response) => {
 			],
 		});
 
-		res
-			.status(200)
-			.json({ success: true, data: sortFeedFriendships(friendships) });
+		const friendshipsWithUnread = friendships.map(friendship => {
+			const friend = {
+				...friendship,
+				isUnread: false,
+			};
+			if (
+				friendship.lastReadPostId &&
+				friendship.friend.posts[0].id > friendship.lastReadPostId
+			) {
+				friend.isUnread = true;
+			}
+			return friend;
+		});
+
+		res.status(200).json({ success: true, data: friendshipsWithUnread });
 	} catch (error) {
 		console.error(error);
 		res.status(500).json({ success: false, error: 'Server error' });
