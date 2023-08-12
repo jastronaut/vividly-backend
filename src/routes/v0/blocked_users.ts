@@ -125,6 +125,21 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 					},
 				},
 			});
+		} else {
+			await prisma.friendRequest.deleteMany({
+				where: {
+					OR: [
+						{
+							fromUserId: user.id,
+							toUserId: userid,
+						},
+						{
+							fromUserId: userid,
+							toUserId: user.id,
+						},
+					],
+				},
+			});
 		}
 
 		res.status(200).json({ success: true });
