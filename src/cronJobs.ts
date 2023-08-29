@@ -1,7 +1,7 @@
 import cron from 'node-cron';
 import { prisma } from './app';
 
-const MAX_NOTIFICATIONS_AGE = 30;
+const MAX_NOTIFICATIONS_AGE = 60;
 
 async function deleteOldNotifications() {
 	const dateThreshold = new Date();
@@ -16,8 +16,8 @@ async function deleteOldNotifications() {
 	});
 }
 
-// schedule task to be run every other day at 00:00
-cron.schedule('0 0 */2 * *', () => {
+// schedule task to be run once a week
+cron.schedule('0 0 * * 0', () => {
 	deleteOldNotifications()
 		.then(() => console.log('Old notifications deleted.'))
 		.catch(error => console.error('Error deleting notifications:', error));

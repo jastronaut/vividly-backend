@@ -159,7 +159,7 @@ router.post('/name/change', auth, async (req: Request, res: Response) => {
 
 // @route GET /v0/users/:id
 // @desc Get user by id
-// @access Public
+// @access Private
 router.get('/:id', auth, async (req: Request, res: Response) => {
 	const user = req.user as RequestUser;
 	const id = parseInt(req.params.id);
@@ -388,6 +388,57 @@ router.get('/info/me', auth, async (req: Request, res: Response) => {
 		const userResult = await prisma.user.findUnique({
 			where: {
 				id: user.id,
+			},
+			select: {
+				id: true,
+				username: true,
+				name: true,
+				bio: true,
+				avatarSrc: true,
+			},
+		});
+
+		if (!userResult) {
+			return res.status(404).json({ success: false, error: 'User not found' });
+		}
+
+		return res.status(200).json({ success: true, user: userResult });
+	} catch (err) {
+		console.error(err);
+		return res
+			.status(500)
+			.json({ success: false, error: 'Internal server error' });
+	}
+});
+
+// @route GET /v0/users/info/u/:username
+// @desc Get basic user info by username
+// @access Private
+router.get('/info/u/:username', auth, async (req: Request, res: Response) => {
+	const user = req.user as RequestUser;
+	const { username } = req.params;
+
+	try {
+		if (!user) {
+			return res.status(401).json({ success: false, error: 'Unauthorized' });
+		}
+
+		if (user.username === username) {
+			return res.status(200).json({
+				success: true,
+				user: {
+					id: user.id,
+					username: user.username,
+					name: user.name,
+					bio: user.bio,
+					avatarSrc: user.avatarSrc,
+				},
+			});
+		}
+
+		const userResult = await prisma.user.findUnique({
+			where: {
+				username,
 			},
 			select: {
 				id: true,

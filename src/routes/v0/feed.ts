@@ -255,7 +255,9 @@ router.get('/friends', auth, async (req: Request, res: Response) => {
 			],
 		});
 
-		const friendshipsWithUnread = friendships.map(friendship => {
+		const sortedFeeds = sortFeedFriendships(friendships);
+
+		const friendshipsWithUnread = sortedFeeds.map(friendship => {
 			const friend = {
 				...friendship,
 				isUnread: false,

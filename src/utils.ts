@@ -15,8 +15,6 @@ export function validatePassword(password: string) {
 	return password.length >= 6;
 }
 
-const validEmails = ['peached.app+120@gmail.com', 'peached.app+124@gmail.com'];
-
 // validate email
 export function validateEmail(email: string) {
 	const isTestAccount =
