@@ -84,12 +84,12 @@ export function createVerifyEmailMessage(
 		from: { email: 'notify@vividly.love', name: 'Vividly' },
 		to: { email: email, name: name },
 		subject: 'Verify your email',
-		html: `<p>Click <a href="http://localhost:3000/verify/${code}">here</a> to verify your email</p>`,
+		html: `<p>Click <a href="${process.env.SERVER_URL}/verify-email/code/${code}">here</a> to verify your email</p>`,
 		templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
 		dynamicTemplateData: {
 			username: '@' + username,
 			first_name: '@' + username,
-			verify_url: `http://localhost:3000/verify/${code}`,
+			verify_url: `${process.env.SERVER_URL}/verify-email/code/${code}`,
 		},
 	};
 
@@ -103,4 +103,33 @@ export function getMentionedUsernames(content: string) {
 	}
 	const mentionsUsernames = matches.map(mention => mention.slice(1));
 	return new Set(mentionsUsernames);
+}
+
+type ErrorWithMessage = {
+	message: string;
+};
+
+function isErrorWithMessage(error: unknown): error is ErrorWithMessage {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'message' in error &&
+		typeof (error as Record<string, unknown>).message === 'string'
+	);
+}
+
+function toErrorWithMessage(maybeError: unknown): ErrorWithMessage {
+	if (isErrorWithMessage(maybeError)) return maybeError;
+
+	try {
+		return new Error(JSON.stringify(maybeError));
+	} catch {
+		// fallback in case there's an error stringifying the maybeError
+		// like with circular references for example.
+		return new Error(String(maybeError));
+	}
+}
+
+export function getErrorMessage(error: unknown) {
+	return toErrorWithMessage(error).message;
 }

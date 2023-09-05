@@ -18,6 +18,7 @@ import {
 	generateVerificationCode,
 	createVerificationExpiryTime,
 	createVerifyEmailMessage,
+	getErrorMessage,
 } from '../../utils';
 import { RequestUser } from '../../types/types';
 
@@ -175,12 +176,12 @@ router.post('/register', async (req: Request, res: Response) => {
 				name: username,
 			},
 			subject: 'Verify your email',
-			html: `<p>Click <a href="http://localhost:3000/verify/${newUser.id}/${code}">here</a> to verify your email</p>`,
+			html: `<p>Click <a href="${process.env.SERVER_URL}/verify/${code}">here</a> to verify your email</p>`,
 			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
 			dynamicTemplateData: {
 				username: '@' + username,
 				first_name: '@' + username,
-				verify_url: `http://localhost:3000/verify/${newUser.id}/${code}`,
+				verify_url: `${process.env.SERVER_URL}/verify/${code}`,
 			},
 		};
 
@@ -354,10 +355,7 @@ router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
 
 	try {
 		if (!code) {
-			return res.status(400).json({
-				error: 'Please enter all fields',
-				errorCode: 'VERIFICATION_MISSING_FIELDS',
-			});
+			throw 'VERIFICATION_MISSING_FIELDS';
 		}
 
 		const authUser = await prisma.authUser.findFirst({
@@ -370,17 +368,7 @@ router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
 		});
 
 		if (!authUser) {
-			return res.status(400).json({
-				error: 'User does not exist',
-				errorCode: 'VERIFICATION_USER_DOES_NOT_EXIST',
-			});
-		}
-
-		if (authUser.emailVerified) {
-			return res.status(400).json({
-				error: 'Email already verified',
-				errorCode: 'VERIFICATION_EMAIL_ALREADY_VERIFIED',
-			});
+			throw 'VERIFICATION_ERROR';
 		}
 
 		const currentTime = new Date().getTime();
@@ -390,10 +378,7 @@ router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
 			currentTime < authUser.verificationExpiresAt.getTime();
 
 		if (!isTimeValid) {
-			return res.status(400).json({
-				error: 'Verification code expired',
-				errorCode: 'VERIFICATION_CODE_EXPIRED',
-			});
+			throw 'VERIFICATION_CODE_EXPIRED';
 		}
 
 		await prisma.authUser.update({
@@ -408,15 +393,12 @@ router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
 				verificationExpiresAt: null,
 			},
 		});
-
-		return res.redirect(`${process.env.CLIENT_URL}/verify-email`);
 	} catch (error) {
 		console.log('error verifying email:', error);
-		res.status(500).json({
-			error: 'Error verifying email',
-			errorCode: 'ERROR_VERIFYING_EMAIL',
-		});
+		let errorCode = getErrorMessage(error);
+		return res.redirect(`${process.env.CLIENT_URL}/verify?error=${errorCode}`);
 	}
+	return res.redirect(`${process.env.CLIENT_URL}/verify`);
 });
 
 // @route POST auth/password/reset
