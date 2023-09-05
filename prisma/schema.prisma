@@ -49,6 +49,7 @@ model Post {
   likedByIds       Int[]     @default([])
   updatedTime      DateTime
   commentsDisabled Boolean   @default(false)
+  favoritesOnly    Boolean   @default(false)
   comments         Comment[] @relation("PostComments")
   author           User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 }

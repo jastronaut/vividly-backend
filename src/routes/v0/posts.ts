@@ -32,27 +32,17 @@ async function canUserViewPost(user: RequestUser, post: Post) {
 		},
 	});
 
-	if (friendship1 !== null && friendship2 !== null) {
-		return true;
-	}
-
-	// get users blocked by request user
-	const blockedUsers = await prisma.block.findMany({
-		select: {
-			blockedUserId: true,
-		},
-		where: {
-			blockerId: post.authorId,
-		},
-	});
-
-	const blockedUserIds = blockedUsers.map(user => user.blockedUserId);
-
-	if (blockedUserIds.includes(user.id)) {
+	// only friends can view posts
+	if (friendship1 === null || friendship2 === null) {
 		return false;
 	}
 
-	return false;
+	// if post is for favorites only, check if friend is a favorite
+	if (post.favoritesOnly && !friendship1.isFavorite) {
+		return false;
+	}
+
+	return true;
 }
 
 async function canUserCommentOnPost(user: RequestUser, post: Post) {
@@ -816,14 +806,15 @@ router.delete(
 
 */
 
-// @route POST v0/posts/:id/comments/disable
-// @desc Disable comments on a post
+// @route POST v0/posts/:id/comments-closed
+// @desc Toggle comments on a post
 // @access Private
 router.post(
-	'/:id/comments/disable',
+	'/:id/comments-closed',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
 		const { user, post } = req;
+		const { enabled } = req.body;
 
 		try {
 			if (!user || !post) {
@@ -843,7 +834,7 @@ router.post(
 					id: post.id,
 				},
 				data: {
-					commentsDisabled: true,
+					commentsDisabled: enabled,
 				},
 			});
 
@@ -854,34 +845,34 @@ router.post(
 	}
 );
 
-// @route POST v0/posts/:id/comments/enable
-// @desc Enable comments on a post
+// @route POST v0/posts/:id/favorites-only
+// @desc Toggle favorites only visibility on a post
 // @access Private
 router.post(
-	'/:id/comments/enable',
+	'/:id/favorites-only',
 	[auth, postMiddleware],
 	async (req: Request, res: Response) => {
 		const { user, post } = req;
+		const { enabled } = req.body;
+
+		if (!user || !post) {
+			return res.status(404).json({ success: false, error: 'Post not found' });
+		}
+
+		if (post.authorId !== user.id) {
+			return res.status(403).json({
+				success: false,
+				error: 'You cannot set this post to favorites only',
+			});
+		}
 
 		try {
-			if (!user || !post) {
-				return res
-					.status(404)
-					.json({ success: false, error: 'Post not found' });
-			}
-
-			if (post.authorId !== user.id) {
-				return res
-					.status(403)
-					.json({ success: false, error: 'You cannot enable comments' });
-			}
-
 			await prisma.post.update({
 				where: {
 					id: post.id,
 				},
 				data: {
-					commentsDisabled: false,
+					favoritesOnly: enabled,
 				},
 			});
 
