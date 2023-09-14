@@ -1,4 +1,4 @@
-type FeedFriendship = {
+export type FeedFriendship = {
 	isFavorite: boolean;
 	lastReadPostId: number | null;
 	lastReadPostTime: Date;
