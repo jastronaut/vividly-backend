@@ -8,7 +8,7 @@ import { auth, verifyEmail } from '../../middleware/auth';
 
 type FriendsQueryArgs = Parameters<typeof prisma.friendship.findMany>[0];
 
-const MAX_FRIENDS = 500;
+const MAX_FRIENDS = 100;
 const FRIENDS_PER_PAGE = 50;
 
 const router = express.Router();
@@ -89,13 +89,16 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 			return res.status(403).json({
 				success: false,
 				error: `Cannot add more than ${MAX_FRIENDS} friends`,
+				errorCode: 'MAX_FRIENDS',
 			});
 		}
 
 		if (username === user.username) {
-			return res
-				.status(403)
-				.json({ success: false, error: 'Cannot add self as friend' });
+			return res.status(403).json({
+				success: false,
+				error: 'Cannot add self as friend',
+				errorCode: 'CANNOT_ADD_SELF',
+			});
 		}
 
 		const otherUser = await prisma.user.findUnique({
@@ -105,7 +108,11 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		});
 
 		if (!otherUser) {
-			return res.status(404).json({ success: false, error: 'User not found' });
+			return res.status(404).json({
+				success: false,
+				error: 'User not found',
+				errorCode: 'USER_NOT_FOUND',
+			});
 		}
 
 		// check if user is blocked by other user
@@ -117,9 +124,11 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		});
 
 		if (isUser1BlockedByUser2) {
-			return res
-				.status(403)
-				.json({ success: true, error: 'Cannot send friend request to user' });
+			return res.status(403).json({
+				success: false,
+				error: 'Cannot send friend request to user',
+				errorCode: 'USER_BLOCKED',
+			});
 		}
 
 		const ifUser2BlockedUser1 = await prisma.block.findFirst({
@@ -130,9 +139,11 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		});
 
 		if (ifUser2BlockedUser1) {
-			return res
-				.status(403)
-				.json({ success: true, error: 'Cannot send friend request to user' });
+			return res.status(403).json({
+				success: false,
+				error: 'Cannot send friend request to user',
+				errorCode: 'USER_BLOCKED',
+			});
 		}
 
 		// check if user is already friends with other user
@@ -144,9 +155,11 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		});
 
 		if (isUser1FriendsWithUser2) {
-			return res
-				.status(403)
-				.json({ success: true, error: 'Already friends with user' });
+			return res.status(403).json({
+				success: false,
+				error: 'Already friends with user',
+				errorCode: 'ALREADY_FRIENDS',
+			});
 		}
 
 		// check if user has already sent a friend request to other user
@@ -160,8 +173,9 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 
 		if (hasUser1SentFriendRequestToUser2) {
 			return res.status(403).json({
-				success: true,
+				success: false,
 				error: 'Already sent friend request to user',
+				errorCode: 'ALREADY_REQUESTED',
 			});
 		}
 
@@ -186,7 +200,11 @@ router.post('/add/:username', [auth], async (req: Request, res: Response) => {
 		});
 	} catch (error) {
 		console.error(error);
-		res.status(500).json({ success: false, error: 'Server error' });
+		res.status(500).json({
+			success: false,
+			error: 'Server error',
+			errorCode: 'SERVER_ERROR',
+		});
 	}
 });
 
@@ -498,7 +516,11 @@ router.post(
 			res.status(200).json({ friendship: updatedFriendship, success: true });
 		} catch (error) {
 			console.error(error);
-			res.status(500).json({ success: false, error: 'Server error' });
+			res.status(500).json({
+				success: false,
+				error: 'Server error',
+				errorCode: 'SERVER_ERROR',
+			});
 		}
 	}
 );
