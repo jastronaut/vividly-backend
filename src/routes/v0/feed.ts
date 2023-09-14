@@ -9,7 +9,7 @@ import { sortFeedFriendships } from '../../sortFeedFriendships';
 
 const router = express.Router();
 
-const PROFILE_FEED_LENGTH = 25;
+const PROFILE_FEED_LENGTH = 50;
 
 type CommentWithAuthor = Comment & {
 	author: { id: number; username: string; name: string; avatarSrc: string };
