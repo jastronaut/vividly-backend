@@ -142,6 +142,14 @@ router.post('/block/:userid', auth, async (req: Request, res: Response) => {
 			});
 		}
 
+		// delete all notifications from blocked user
+		await prisma.notification.deleteMany({
+			where: {
+				userId: user.id,
+				senderId: userid,
+			},
+		});
+
 		res.status(200).json({ success: true });
 	} catch (error) {
 		console.error(error);
