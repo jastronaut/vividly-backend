@@ -17,14 +17,10 @@ type CommentWithAuthor = Comment & {
 
 function createFeedResponseForPostandUserId(
 	post: Post & { comments: CommentWithAuthor[] },
-	userId: number,
-	blockedUserIds: number[]
+	userId: number
 ) {
 	const likedByUser = post.likedByIds.find(like => like === userId);
 	// can we do this with prisma?
-	const filteredComments = post.comments.filter(
-		comment => !blockedUserIds.includes(comment.authorId)
-	);
 	return {
 		id: post.id,
 		createdTime: post.createdTime,
@@ -33,7 +29,7 @@ function createFeedResponseForPostandUserId(
 		content: post.content,
 		likes: post.likedByIds.length,
 		isLikedByUser: likedByUser ? true : false,
-		comments: filteredComments,
+		comments: post.comments,
 	};
 }
 
@@ -71,6 +67,11 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 			}
 		}
 
+		// get flattened of blocked users to filter comments
+		const blockedUsers = user.blockedUsers.map(
+			blockedUser => blockedUser.blockedUserId
+		);
+
 		// get posts
 		let posts = [];
 		if (cursor) {
@@ -88,6 +89,11 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 				},
 				include: {
 					comments: {
+						where: {
+							authorId: {
+								notIn: blockedUsers,
+							},
+						},
 						include: {
 							author: {
 								select: {
@@ -112,6 +118,11 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 				},
 				include: {
 					comments: {
+						where: {
+							authorId: {
+								notIn: blockedUsers,
+							},
+						},
 						include: {
 							author: {
 								select: {
@@ -127,9 +138,6 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 			});
 		}
 
-		// get users blocked by request user
-		const blockedUsers = user.blockedUsers;
-
 		let newCursor: number | null = null;
 		// we need to check if there are more posts
 		const len = posts.length;
@@ -137,13 +145,9 @@ router.get('/uid/:userId', auth, async (req: Request, res: Response) => {
 			newCursor = posts[len - 2].id;
 		}
 
-		const mappedPosts = posts.slice(0, PROFILE_FEED_LENGTH - 1).map(post =>
-			createFeedResponseForPostandUserId(
-				post,
-				user.id,
-				blockedUsers.map(user => user.blockedUserId)
-			)
-		);
+		const mappedPosts = posts
+			.slice(0, PROFILE_FEED_LENGTH - 1)
+			.map(post => createFeedResponseForPostandUserId(post, user.id));
 
 		res
 			.status(200)

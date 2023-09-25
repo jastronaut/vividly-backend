@@ -4,7 +4,10 @@ export type RequestUser = Pick<
 	'id' | 'name' | 'username' | 'bio' | 'avatarSrc'
 > & {
 	friends: Friendship[];
-	blockedUsers: Block[];
+	blockedUsers: {
+		id: number;
+		blockedUserId: number;
+	}[];
 };
 
 export enum NotificationType {

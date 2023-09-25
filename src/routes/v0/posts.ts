@@ -62,7 +62,11 @@ async function canUserCommentOnPost(user: RequestUser, post: Post) {
 	return true;
 }
 
-async function createPostResponseForUserId(userId: number, post: Post) {
+async function createPostResponseForUserId(
+	userId: number,
+	post: Post,
+	blockedUsers: { blockedUserId: number }[]
+) {
 	const likesLen = post.likedByIds.length;
 	const likedByUser = post.likedByIds.find(id => id === userId) !== undefined;
 
@@ -81,6 +85,9 @@ async function createPostResponseForUserId(userId: number, post: Post) {
 	const comments = await prisma.comment.findMany({
 		where: {
 			postId: post.id,
+			authorId: {
+				notIn: blockedUsers.map(blockedUser => blockedUser.blockedUserId),
+			},
 		},
 		orderBy: {
 			createdTime: 'asc',
@@ -148,9 +155,7 @@ async function findMentionsAndNotify(
 	userId: number,
 	postId: number,
 	username: string,
-	blockedUserIds: {
-		blockedUserId: number;
-	}[]
+	blockedUserNames: { username: string }[]
 ) {
 	const mentions = new Set();
 
@@ -162,7 +167,8 @@ async function findMentionsAndNotify(
 			}
 			for (const match of matches) {
 				const name = match.slice(1);
-				if (name !== username) {
+				const isBlocked = blockedUserNames.find(user => user.username === name);
+				if (name !== username && !isBlocked) {
 					mentions.add(name);
 				}
 			}
@@ -181,10 +187,15 @@ async function findMentionsAndNotify(
 			});
 
 			if (mentionedUser) {
-				const findBlocked = blockedUserIds.find(
-					user => user.blockedUserId === mentionedUser.id
-				);
-				if (findBlocked) {
+				// has the mentioned user blocked the user who is mentioning them?
+				const blockedByMentioned = await prisma.block.findFirst({
+					where: {
+						blockerId: mentionedUser.id,
+						blockedUserId: userId,
+					},
+				});
+
+				if (blockedByMentioned) {
 					return;
 				}
 
@@ -229,7 +240,11 @@ router.get(
 					.json({ success: false, error: 'You cannot view this post' });
 			}
 
-			const postResponse = await createPostResponseForUserId(user.id, post);
+			const postResponse = await createPostResponseForUserId(
+				user.id,
+				post,
+				user.blockedUsers
+			);
 			res.status(200).json({ success: true, post: postResponse });
 		} catch (err) {
 			res.status(500).json({ success: false, error: err });
@@ -389,15 +404,30 @@ router.post('/', auth, async (req: Request, res: Response) => {
 			},
 		});
 
+		const blockedUserNames = await prisma.user.findMany({
+			select: {
+				username: true,
+			},
+			where: {
+				id: {
+					in: user.blockedUsers.map(blockedUser => blockedUser.blockedUserId),
+				},
+			},
+		});
+
 		await findMentionsAndNotify(
 			content,
 			user.id,
 			post.id,
 			user.username,
-			user.blockedUsers
+			blockedUserNames
 		);
 
-		const postResponse = await createPostResponseForUserId(user.id, post);
+		const postResponse = await createPostResponseForUserId(
+			user.id,
+			post,
+			user.blockedUsers
+		);
 
 		res.status(200).json({ success: true, post: postResponse });
 	} catch (err) {
@@ -490,7 +520,11 @@ router.put(
 				},
 			});
 
-			const postResponse = await createPostResponseForUserId(user.id, post);
+			const postResponse = await createPostResponseForUserId(
+				user.id,
+				post,
+				user.blockedUsers
+			);
 
 			res.status(200).json({
 				success: true,
