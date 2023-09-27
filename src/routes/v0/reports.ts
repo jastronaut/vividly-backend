@@ -4,6 +4,7 @@ import express from 'express';
 import { prisma } from '../../app';
 import { RequestUser } from '../../types/types';
 import { auth } from '../../middleware/auth';
+import { adminMiddleware } from '../../middleware/admin';
 
 const router = express.Router();
 
@@ -45,5 +46,45 @@ router.post('/', auth, async (req: Request, res: Response) => {
 		return res.status(500).json({ success: false, error: err });
 	}
 });
+
+// @route GET /v0/reports
+// @desc Get all reports
+// @access Private
+router.get(
+	'/',
+	[auth, adminMiddleware],
+	async (req: Request, res: Response) => {
+		try {
+			// get all reports and handle pagination
+			const { page, limit } = req.query;
+			const reports = await prisma.report.findMany({
+				skip: page ? Number(page) * Number(limit) : 0,
+				take: limit ? Number(limit) : 10,
+				orderBy: {
+					createdTime: 'desc',
+				},
+				include: {
+					reporter: {
+						select: {
+							id: true,
+							username: true,
+						},
+					},
+				},
+			});
+
+			const cursor = reports.length < Number(limit) ? null : Number(page) + 1;
+
+			return res.status(200).json({
+				success: true,
+				data: reports,
+				cursor,
+			});
+		} catch (err) {
+			console.error(err);
+			return res.status(500).json({ success: false, error: err });
+		}
+	}
+);
 
 export default router;

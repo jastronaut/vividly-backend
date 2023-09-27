@@ -10,6 +10,7 @@ import UsersHandlers from './routes/v0/users';
 import WaitlistHandlers from './routes/v0/waitlist';
 import NotificationHandlers from './routes/v0/notifications';
 import ReportHandlers from './routes/v0/reports';
+import AdminHandlers from './routes/v0/admin';
 
 import './cronJobs';
 
@@ -27,6 +28,7 @@ app.use('/v0/users', UsersHandlers);
 app.use('/v0/waitlist', WaitlistHandlers);
 app.use('/v0/notifications', NotificationHandlers);
 app.use('/v0/reports', ReportHandlers);
+app.use('/v0/admin', AdminHandlers);
 
 const port = process.env.PORT || 1337;
 

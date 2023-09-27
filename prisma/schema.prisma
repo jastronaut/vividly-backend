@@ -72,6 +72,7 @@ model AuthUser {
   verificationCode      String?
   verificationExpiresAt DateTime?
   resetCode             String?
+  isAdmin               Boolean   @default(false)
   user                  User      @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -102,6 +103,7 @@ model User {
   notifications         Notification[]
   posts                 Post[]          @relation("PostAuthor")
   userSettings          UserSettings?   @relation("UserSettings")
+  reports               Report[]        @relation("ReportUser")
 }
 
 model Waitlist {
@@ -127,6 +129,7 @@ model Report {
   itemId         Int
   itemType       String
   reporterId     Int
+  reporter      User     @relation("ReportUser", fields: [reporterId], references: [id], onDelete: Cascade)
   comment        String?
   reason         String
   resolved       Boolean  @default(false)
