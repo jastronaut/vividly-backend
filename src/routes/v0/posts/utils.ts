@@ -106,31 +106,27 @@ export async function createPostResponseForUserId(
 	};
 }
 
-function findMentionMatches(content: string) {
-	return content.match(/@(\w+)/g);
-}
-
-export async function findPostMentionsAndNotify(
+export async function findMentionsAndNotify(
 	content: any, // JSON
 	userId: number,
 	postId: number,
 	username: string,
-	blockedUserNames: { username: string }[]
+	blockedUserNames: { username: string }[],
+	mentionType: NotificationType,
+	firstBlock: any
 ) {
 	const mentions = new Set();
 
 	for (const block of content) {
-		if (block.type === 'text') {
-			const matches = findMentionMatches(block.text);
-			if (!matches) {
-				continue;
-			}
-			for (const match of matches) {
-				const name = match.slice(1);
-				const isBlocked = blockedUserNames.find(user => user.username === name);
-				if (name !== username && !isBlocked) {
-					mentions.add(name);
-				}
+		const matches = block.match(/@(\w+)/g);
+		if (!matches) {
+			continue;
+		}
+		for (const match of matches) {
+			const name = match.slice(1);
+			const isBlocked = blockedUserNames.find(user => user.username === name);
+			if (name !== username && !isBlocked) {
+				mentions.add(name);
 			}
 		}
 	}
@@ -165,10 +161,10 @@ export async function findPostMentionsAndNotify(
 						createdTime: new Date(),
 						senderId: userId,
 						body: {
-							type: NotificationType.POST_MENTION,
+							type: mentionType,
 							post: {
 								id: postId,
-								block: content[0],
+								block: firstBlock,
 							},
 						},
 					},
@@ -176,4 +172,14 @@ export async function findPostMentionsAndNotify(
 			}
 		})
 	);
+}
+
+export function extractPostTextStrings(content: any) {
+	const data = [];
+	for (const block of content) {
+		if (block.type === 'text') {
+			data.push(block.text);
+		}
+	}
+	return data;
 }

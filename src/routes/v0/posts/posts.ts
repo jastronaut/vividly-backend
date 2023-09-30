@@ -6,10 +6,11 @@ import { NotificationType } from '../../../types/types';
 import { auth } from '../../../middleware/auth';
 import { postMiddleware } from '../../../middleware/post';
 import {
-	findPostMentionsAndNotify,
+	findMentionsAndNotify,
 	createPostResponseForUserId,
 	canUserViewPost,
 	canUserCommentOnPost,
+	extractPostTextStrings,
 } from './utils';
 
 const router = express.Router();
@@ -214,12 +215,16 @@ router.post('/', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		await findPostMentionsAndNotify(
-			content,
+		const extractedTextStrings = extractPostTextStrings(content);
+
+		await findMentionsAndNotify(
+			extractedTextStrings,
 			user.id,
 			post.id,
 			user.username,
-			blockedUserNames
+			blockedUserNames,
+			NotificationType.POST_MENTION,
+			content[0]
 		);
 
 		const postResponse = await createPostResponseForUserId(
@@ -458,6 +463,30 @@ router.post(
 			};
 
 			// handle mentions?
+			const blockedUserNames = await prisma.user.findMany({
+				select: {
+					username: true,
+				},
+				where: {
+					id: {
+						in: user.blockedUsers.map(blockedUser => blockedUser.blockedUserId),
+					},
+				},
+			});
+
+			await findMentionsAndNotify(
+				[content],
+				user.id,
+				post.id,
+				user.username,
+				blockedUserNames,
+				NotificationType.COMMENT_MENTION,
+				{
+					type: 'text',
+					text: content,
+				}
+			);
+
 			// send notification
 			if (post.authorId !== user.id) {
 				await prisma.notification.create({
