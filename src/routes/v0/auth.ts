@@ -204,6 +204,28 @@ router.post('/register', async (req: Request, res: Response) => {
 			},
 			token,
 		});
+
+		// add the official account as a friend
+		const friendToUser = await prisma.friendship.create({
+			data: {
+				userId: 13,
+				friendId: newUser.id,
+				lastReadPostTime: new Date(),
+				friendType: 'FRIEND', // TODO: change
+			},
+		});
+		const userToFriend = await prisma.friendship.create({
+			data: {
+				userId: newUser.id,
+				friendId: 13,
+				lastReadPostTime: new Date(),
+				friendType: 'FRIEND', // TODO: change
+			},
+		});
+
+		if (!friendToUser || !userToFriend) {
+			console.error('Error adding official account as friend');
+		}
 	} catch (error) {
 		if (newUser) {
 			await prisma.user.delete({
