@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-const JWT_SECRET = process.env.PEACHED_JWT_SECRET || '';
+const JWT_SECRET = process.env.VIVIDLY_JWT_SECRET_0 || '';
 import jwt from 'jsonwebtoken';
 
 const prisma = new PrismaClient();
@@ -17,10 +17,8 @@ export function validatePassword(password: string) {
 
 // validate email
 export function validateEmail(email: string) {
-	const isTestAccount =
-		email.startsWith('peached.app+') && email.endsWith('@gmail.com');
-	const isAdminAccount = email.endsWith('@vividly.love');
-	return isTestAccount || isAdminAccount;
+	const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+	return emailRegex.test(email);
 }
 
 export function validateName(name: string) {
