@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 import AuthHandlers from './routes/v0/auth';
 import PostHandlers from './routes/v0/posts/posts';
@@ -15,9 +16,31 @@ import AdminHandlers from './routes/v0/admin';
 import './cronJobs';
 
 const app = express();
+
+const limiter = rateLimit({
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	max: 300,
+});
+app.use(limiter);
+
+const VALID_ORIGINS = [
+	'https://vividly-web.vercel.app',
+	'https://app.vividly.love',
+];
+
 app.use(express.json());
 // questionable
-app.use(cors());
+app.use(
+	cors({
+		origin: (origin: string | undefined, callback: Function) => {
+			if (origin && VALID_ORIGINS.indexOf(origin) !== -1) {
+				callback(null, true);
+			} else {
+				callback(new Error('Not allowed by CORS'));
+			}
+		},
+	})
+);
 
 app.use('/v0/auth', AuthHandlers);
 app.use('/v0/posts', PostHandlers);
