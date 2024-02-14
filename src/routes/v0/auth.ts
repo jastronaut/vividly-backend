@@ -185,7 +185,7 @@ router.post('/register', async (req: Request, res: Response) => {
 			},
 		};
 
-		await SendGrid.send(message);
+		// await SendGrid.send(message);
 
 		// sign jwt
 		const token = getJwt(newUser.id, hash);
