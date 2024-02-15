@@ -28,6 +28,10 @@ const VALID_ORIGINS = [
 	'https://app.vividly.love',
 ];
 
+if (process.env.NODE_ENV === 'development') {
+	VALID_ORIGINS.push('http://localhost:3000');
+}
+
 app.use(express.json());
 // questionable
 app.use(
