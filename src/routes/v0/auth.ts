@@ -3,6 +3,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import SendGrid from '@sendgrid/mail';
 import { User } from '@prisma/client';
+import { z } from 'zod';
 
 SendGrid.setApiKey(
 	process.env.SENDGRID_DEV_API_KEY || process.env.SENDGRID_API_KEY || ''
@@ -21,6 +22,7 @@ import {
 	getErrorMessage,
 } from '../../utils';
 import { RequestUser } from '../../types/types';
+import validateParams from '../../middleware/validateParams';
 
 const router = express.Router();
 
@@ -169,23 +171,32 @@ router.post('/register', async (req: Request, res: Response) => {
 			},
 		});
 
-		const message = {
-			from: { email: 'notify@vividly.love', name: 'Vividly' },
-			to: {
-				email,
-				name: username,
-			},
-			subject: 'Verify your email',
-			html: `<p>Click <a href="${process.env.SERVER_URL}/verify/${code}">here</a> to verify your email</p>`,
-			templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
-			dynamicTemplateData: {
-				username: '@' + username,
-				first_name: '@' + username,
-				verify_url: `${process.env.SERVER_URL}/verify/${code}`,
-			},
-		};
+		const url = `${process.env.CLIENT_URL}/verify?code=${code}&userId=${newUser.id}`;
+		if (process.env.NODE_ENV === 'production') {
+			try {
+				const message = {
+					from: { email: 'notify@vividly.love', name: 'Vividly' },
+					to: {
+						email,
+						name: username,
+					},
+					subject: 'Verify your email',
+					html: `<p>Click <a href="${url}">here</a> to verify your email</p>`,
+					templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
+					dynamicTemplateData: {
+						username: '@' + username,
+						first_name: '@' + username,
+						verify_url: url,
+					},
+				};
 
-		// await SendGrid.send(message);
+				await SendGrid.send(message);
+			} catch (error) {
+				console.error('Error sending email:', error);
+			}
+		} else {
+			console.log('Verification link:', url);
+		}
 
 		// sign jwt
 		const token = getJwt(newUser.id, hash);
@@ -206,25 +217,27 @@ router.post('/register', async (req: Request, res: Response) => {
 		});
 
 		// add the official account as a friend
-		const friendToUser = await prisma.friendship.create({
-			data: {
-				userId: 13,
-				friendId: newUser.id,
-				lastReadPostTime: new Date(),
-				friendType: 'FRIEND', // TODO: change
-			},
-		});
-		const userToFriend = await prisma.friendship.create({
-			data: {
-				userId: newUser.id,
-				friendId: 13,
-				lastReadPostTime: new Date(),
-				friendType: 'FRIEND', // TODO: change
-			},
-		});
-
-		if (!friendToUser || !userToFriend) {
-			console.error('Error adding official account as friend');
+		if (process.env.NODE_ENV === 'production') {
+			const now = new Date();
+			const friendToUser = await prisma.friendship.create({
+				data: {
+					userId: 13,
+					friendId: newUser.id,
+					lastReadPostTime: now,
+					friendType: 'FRIEND', // TODO: change
+				},
+			});
+			const userToFriend = await prisma.friendship.create({
+				data: {
+					userId: newUser.id,
+					friendId: 13,
+					lastReadPostTime: now,
+					friendType: 'FRIEND', // TODO: change
+				},
+			});
+			if (!friendToUser || !userToFriend) {
+				console.error('Error adding official account as friend');
+			}
 		}
 	} catch (error) {
 		if (newUser) {
@@ -322,11 +335,14 @@ router.post(
 
 		try {
 			const authUser = await prisma.authUser.findUnique({
+				select: {
+					id: true,
+					emailVerified: true,
+					email: true,
+					newEmail: true,
+				},
 				where: {
 					userId: user.id,
-				},
-				include: {
-					user: true,
 				},
 			});
 
@@ -352,14 +368,18 @@ router.post(
 				},
 			});
 
-			const message = createVerifyEmailMessage(
-				user.username,
-				user.name,
-				authUser.email,
-				verificationCode
-			);
+			if (process.env.NODE_ENV === 'production') {
+				const message = createVerifyEmailMessage(
+					user.username,
+					user.name,
+					authUser.newEmail ?? authUser.email,
+					verificationCode
+				);
 
-			await SendGrid.send(message);
+				await SendGrid.send(message);
+			} else {
+				console.log('Verification code:', verificationCode);
+			}
 
 			res.status(200).json({ msg: 'Email sent successfully' });
 		} catch (error) {
@@ -369,189 +389,252 @@ router.post(
 	}
 );
 
-// @route GET auth/verify-email/code/:code
+const verifyEmailSchema = z.object({
+	code: z.string(),
+	userId: z.number(),
+});
+
+// @route POST auth/verify-email
 // @desc Verify user via code
 // @access Public
-router.get('/verify-email/code/:code', async (req: Request, res: Response) => {
-	const { code } = req.params;
-
-	try {
-		if (!code) {
-			throw 'VERIFICATION_MISSING_FIELDS';
-		}
-
-		const authUser = await prisma.authUser.findFirst({
-			where: {
-				verificationCode: code,
-			},
-			include: {
-				user: true,
-			},
-		});
-
-		if (!authUser) {
-			throw 'VERIFICATION_ERROR';
-		}
-
+router.post(
+	'/verify-email',
+	validateParams(verifyEmailSchema),
+	async (req: Request, res: Response) => {
+		const { code, userId } = req.body;
 		const currentTime = new Date().getTime();
+		try {
+			const authUser = await prisma.authUser.findFirst({
+				select: {
+					id: true,
+					verificationExpiresAt: true,
+					verificationCode: true,
+					newEmail: true,
+					email: true,
+				},
+				where: {
+					userId,
+					verificationCode: code,
+				},
+			});
 
-		const isTimeValid =
-			authUser.verificationExpiresAt &&
-			currentTime < authUser.verificationExpiresAt.getTime();
+			if (!authUser) {
+				return res.status(400).json({
+					success: false,
+					error: 'Invalid code',
+					errorCode: 'EMAIL_VERIFICATION_INVALID_CODE',
+				});
+			}
 
-		if (!isTimeValid) {
-			throw 'VERIFICATION_CODE_EXPIRED';
+			const isTimeValid =
+				authUser.verificationExpiresAt &&
+				currentTime < authUser.verificationExpiresAt.getTime();
+
+			if (!isTimeValid) {
+				return res.status(400).json({
+					success: false,
+					error: 'Code has expired',
+					errorCode: 'EMAIL_VERIFICATION_CODE_EXPIRED',
+				});
+			}
+
+			await prisma.authUser.update({
+				where: {
+					id: authUser.id,
+				},
+				data: {
+					emailVerified: true,
+					verificationCode: null,
+					email: authUser.newEmail ?? authUser.email,
+					newEmail: null,
+					verificationExpiresAt: null,
+				},
+			});
+			return res.status(200).json({ success: true });
+		} catch (error) {
+			let errorCode = getErrorMessage(error);
+			return res
+				.status(400)
+				.json({ success: false, error: 'Error verifying email', errorCode });
 		}
-
-		await prisma.authUser.update({
-			where: {
-				id: authUser.id,
-			},
-			data: {
-				emailVerified: true,
-				verificationCode: null,
-				email: authUser.newEmail ?? authUser.email,
-				newEmail: null,
-				verificationExpiresAt: null,
-			},
-		});
-	} catch (error) {
-		console.log('error verifying email:', error);
-		let errorCode = getErrorMessage(error);
-		return res.redirect(`${process.env.CLIENT_URL}/verify?error=${errorCode}`);
 	}
-	return res.redirect(`${process.env.CLIENT_URL}/verify`);
+);
+
+const resetPasswordRequestSchema = z.object({
+	email: z.string().email(),
 });
 
 // @route POST auth/password/reset
 // @desc Send password reset email to user
 // @access Public
-router.post('/password/reset-request', async (req: Request, res: Response) => {
-	const { email } = req.body;
-	if (!email) {
-		return res.status(400).json({ msg: 'Please enter all fields' });
-	}
+router.post(
+	'/password/reset-request',
+	validateParams(resetPasswordRequestSchema),
+	async (req: Request, res: Response) => {
+		const { email } = req.body;
 
-	try {
-		const authUser = await prisma.authUser.findUnique({
-			where: {
-				email,
-			},
-			include: {
-				user: {
-					select: {
-						name: true,
-						username: true,
+		try {
+			const authUser = await prisma.authUser.findUnique({
+				where: {
+					email,
+				},
+				include: {
+					user: {
+						select: {
+							name: true,
+							username: true,
+						},
 					},
 				},
-			},
-		});
+			});
 
-		if (!authUser) {
-			return res.status(400).json({ msg: 'User does not exist' });
+			if (!authUser) {
+				return res.status(400).json({ msg: 'User does not exist' });
+			}
+
+			const code = generateVerificationCode();
+			const codeExpirationTime = new Date(Date.now() + 1000 * 60 * 60);
+
+			await prisma.authUser.update({
+				where: {
+					email,
+				},
+				data: {
+					resetCode: code,
+					resetCodeExpiresAt: codeExpirationTime,
+				},
+			});
+
+			const passwordResetLink = `${process.env.CLIENT_URL}/reset-password?userId=${authUser.userId}&code=${code}`;
+
+			if (process.env.NODE_ENV === 'production') {
+				const message = {
+					from: { email: 'notify@vividly.love', name: 'Vividly' },
+					to: { email: authUser.email, name: authUser.user.name },
+					subject: 'Reset your password',
+					html: `<p>Click <a href="${passwordResetLink}">here</a> to reset your password. This code will expire in 1 hour.</p><p>💜, Vividly</p>`,
+					templateId: 'd-4e32a3a9281d460a95fef0f759f3736f',
+					dynamicTemplateData: {
+						username: '@' + authUser.user.username,
+						first_name: '@' + authUser.user.username,
+						pw_reset_url: passwordResetLink,
+					},
+				};
+				await SendGrid.send(message);
+			} else {
+				console.log('passwordResetLink:', passwordResetLink);
+			}
+			res.status(200).json({ msg: 'Email sent successfully' });
+		} catch (error) {
+			console.log('error sending email:', error);
+			res.status(500).json({ msg: 'Error sending email' });
 		}
-
-		const code = generateVerificationCode();
-
-		await prisma.authUser.update({
-			where: {
-				email,
-			},
-			data: {
-				resetCode: code,
-			},
-		});
-
-		const passwordResetLink = `http://localhost:3000/password/reset/${authUser.userId}/${code}`;
-		const message = {
-			from: { email: 'notify@vividly.love', name: 'Vividly' },
-			to: { email: authUser.email, name: authUser.user.name },
-			subject: 'Verify your email',
-			html: `<p>Click <a href="${passwordResetLink}">here</a> to reset your password</p>`,
-			templateId: 'd-4e32a3a9281d460a95fef0f759f3736f',
-			dynamicTemplateData: {
-				username: '@' + authUser.user.username,
-				first_name: '@' + authUser.user.username,
-				verify_url: passwordResetLink,
-			},
-		};
-		await SendGrid.send(message);
-		res.status(200).json({ msg: 'Email sent successfully' });
-	} catch (error) {
-		console.log('error sending email:', error);
-		res.status(500).json({ msg: 'Error sending email' });
 	}
+);
+
+const resetPasswordSchema = z.object({
+	password: z.string(),
+	code: z.string(),
+	userId: z.number(),
 });
 
 // @route POST auth/password/reset
 // @desc Reset user password
-// @access Private
-router.post('/password/reset', async (req: Request, res: Response) => {
-	const user = req.user;
-	const { password } = req.body;
+// @access Public
+router.post(
+	'/password/reset',
+	validateParams(resetPasswordSchema),
+	async (req: Request, res: Response) => {
+		const { password, code, userId } = req.body;
+		const now = new Date();
 
-	if (!user) {
-		return res.status(400).json({
-			success: false,
-			error: 'User does not exist',
-			errorCode: 'RESET_PASSWORD_USER_DOES_NOT_EXIST',
-		});
-	}
-
-	if (!password) {
-		return res.status(400).json({
-			success: false,
-			error: 'Please enter all fields',
-			errorCode: 'RESET_PASSWORD_MISSING_FIELDS',
-		});
-	}
-
-	if (!validatePassword(password)) {
-		return res.status(400).json({
-			success: false,
-			error: 'Password must be at least 8 characters long',
-			errorCode: 'RESET_PASSWORD_INVALID_PASSWORD',
-		});
-	}
-
-	try {
-		const authUser = await prisma.authUser.findUnique({
-			where: {
-				userId: user.id,
-			},
-		});
-
-		if (!authUser) {
+		if (!validatePassword(password)) {
 			return res.status(400).json({
 				success: false,
-				error: 'User does not exist',
-				errorCode: 'RESET_PASSWORD_USER_DOES_NOT_EXIST',
+				error: 'Password must be at least 6 characters long',
+				errorCode: 'RESET_PASSWORD_INVALID_PASSWORD',
 			});
 		}
 
-		const salt = await bcrypt.genSalt(10);
-		const hash = await bcrypt.hash(password, salt);
+		try {
+			const authUser = await prisma.authUser.findUnique({
+				where: {
+					userId,
+				},
+				select: {
+					id: true,
+					resetCode: true,
+					resetCodeExpiresAt: true,
+				},
+			});
 
-		await prisma.authUser.update({
-			where: {
-				userId: user.id,
-			},
-			data: {
-				password: hash,
-				resetCode: null,
-			},
-		});
+			if (!authUser) {
+				return res.status(400).json({
+					success: false,
+					error: 'User does not exist',
+					errorCode: 'RESET_PASSWORD_USER_DOES_NOT_EXIST',
+				});
+			}
 
-		res.status(200).json({ msg: 'Password reset successfully', success: true });
-	} catch (error) {
-		console.log('error resetting password:', error);
-		res.status(500).json({
-			success: false,
-			error: 'Error resetting password',
-			errorCode: 'RESET_PASSWORD_ERROR',
-		});
+			if (!authUser.resetCodeExpiresAt || authUser.resetCodeExpiresAt < now) {
+				return res.status(400).json({
+					success: false,
+					error: 'Code has expired',
+					errorCode: 'RESET_PASSWORD_CODE_EXPIRED',
+				});
+			}
+
+			if (!authUser.resetCode || authUser.resetCode !== code) {
+				return res.status(400).json({
+					success: false,
+					error: 'Invalid code',
+					errorCode: 'RESET_PASSWORD_INVALID_CODE',
+				});
+			}
+
+			const salt = await bcrypt.genSalt(10);
+			const hash = await bcrypt.hash(password, salt);
+
+			await prisma.authUser.update({
+				where: {
+					id: authUser.id,
+				},
+				data: {
+					password: hash,
+					resetCode: null,
+					resetCodeExpiresAt: null,
+				},
+			});
+
+			const user = await prisma.user.findUnique({
+				where: {
+					id: userId,
+				},
+				select: {
+					id: true,
+					name: true,
+					username: true,
+					avatarSrc: true,
+					bio: true,
+				},
+			});
+
+			res.status(200).json({
+				msg: 'Password reset successfully',
+				success: true,
+				user: user,
+				token: getJwt(userId, hash),
+			});
+		} catch (error) {
+			console.log('error resetting password:', error);
+			res.status(500).json({
+				success: false,
+				error: 'Error resetting password',
+				errorCode: 'RESET_PASSWORD_ERROR',
+			});
+		}
 	}
-});
+);
 
 // @route GET auth/info
 // @desc Get user auth info
@@ -630,14 +713,16 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 			},
 		});
 
-		const message = createVerifyEmailMessage(
-			user.username,
-			user.name,
-			email,
-			code
-		);
+		if (process.env.NODE_ENV === 'production') {
+			const message = createVerifyEmailMessage(
+				user.username,
+				user.name,
+				email,
+				code
+			);
 
-		await SendGrid.send(message);
+			await SendGrid.send(message);
+		}
 
 		return res.status(200).json({ success: true });
 	} catch (err) {

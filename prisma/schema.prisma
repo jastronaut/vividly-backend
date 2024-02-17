@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("VIVILDLY_DATABASE_0_URL")
+  url      = env("VIVIDLY_DATABASE_0_URL")
 }
 
 model Comment {
@@ -72,6 +72,7 @@ model AuthUser {
   verificationCode      String?
   verificationExpiresAt DateTime?
   resetCode             String?
+  resetCodeExpiresAt    DateTime?
   isAdmin               Boolean   @default(false)
   user                  User      @relation("AuthUser", fields: [userId], references: [id], onDelete: Cascade)
 }
