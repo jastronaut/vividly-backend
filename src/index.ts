@@ -37,7 +37,11 @@ app.use(express.json());
 app.use(
 	cors({
 		origin: (origin: string | undefined, callback: Function) => {
-			if (origin && VALID_ORIGINS.indexOf(origin) !== -1) {
+			// i do not like this at all :)
+			if (
+				origin === undefined ||
+				(origin && VALID_ORIGINS.indexOf(origin) !== -1)
+			) {
 				callback(null, true);
 			} else {
 				callback(new Error('Not allowed by CORS'));
@@ -59,7 +63,7 @@ app.use('/v0/admin', AdminHandlers);
 
 const port = process.env.PORT || 1337;
 
-const server = app.listen(port, () =>
+app.listen(port, () =>
 	console.log(
 		`⭐️ You're running Vividly! Server is listening on port ${port} ⭐️`
 	)
