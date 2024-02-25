@@ -17,11 +17,13 @@ import './cronJobs';
 
 const app = express();
 
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // 15 minutes
-	max: 300,
-});
-app.use(limiter);
+if (process.env.NODE_ENV === 'production') {
+	const limiter = rateLimit({
+		windowMs: 15 * 60 * 1000, // 15 minutes
+		max: 300,
+	});
+	app.use(limiter);
+}
 
 const VALID_ORIGINS = [
 	'https://vividly-web.vercel.app',

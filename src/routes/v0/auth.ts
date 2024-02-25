@@ -653,6 +653,7 @@ router.get('/info', auth, async (req: Request, res: Response) => {
 			},
 			select: {
 				email: true,
+				newEmail: true,
 				emailVerified: true,
 				isAdmin: true,
 			},
