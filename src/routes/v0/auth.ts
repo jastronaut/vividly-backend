@@ -370,6 +370,7 @@ router.post(
 
 			if (process.env.NODE_ENV === 'production') {
 				const message = createVerifyEmailMessage(
+					user.id,
 					user.username,
 					user.name,
 					authUser.newEmail ?? authUser.email,
@@ -716,6 +717,7 @@ router.post('/email/change', auth, async (req: Request, res: Response) => {
 
 		if (process.env.NODE_ENV === 'production') {
 			const message = createVerifyEmailMessage(
+				user.id,
 				user.username,
 				user.name,
 				email,
