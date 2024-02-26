@@ -73,21 +73,23 @@ export function createVerificationExpiryTime() {
 }
 
 export function createVerifyEmailMessage(
+	userId: number,
 	username: string,
 	name: string,
 	email: string,
 	code: string
 ) {
+	const url = `${process.env.CLIENT_URL}/verify?code=${code}&userId=${userId}`;
 	const message = {
 		from: { email: 'notify@vividly.love', name: 'Vividly' },
 		to: { email: email, name: name },
 		subject: 'Verify your email',
-		html: `<p>Click <a href="${process.env.SERVER_URL}/verify-email/code/${code}">here</a> to verify your email</p>`,
+		html: `<p>Click <a href="${url}">here</a> to verify your email</p>`,
 		templateId: 'd-54260593ff0c4e6aa1503828726ddff2',
 		dynamicTemplateData: {
 			username: '@' + username,
 			first_name: '@' + username,
-			verify_url: `${process.env.SERVER_URL}/verify-email/code/${code}`,
+			verify_url: url,
 		},
 	};
 
